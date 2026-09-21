@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Buyer Sign In - SanghaviMart</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+<body>
+  <header class="navbar">
+    <div class="nav-container">
+      <a href="/" class="brand"><span>🛒</span> <span>SanghaviMart</span> <span class="brand-badge" style="background:#eff6ff;color:#2563eb;">Buyer Portal</span></a>
+      <div style="display:flex;gap:1rem;align-items:center;">
+        <a href="/login-seller.html" class="nav-link" style="font-size:0.85rem;">Seller Login →</a>
+        <a href="/login-admin.html" class="nav-link" style="font-size:0.85rem;">Admin Login →</a>
+        <a href="/" class="btn btn-outline btn-sm">← Back to Store</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="form-card" style="border-top: 4px solid #2563eb;">
+      <div style="text-align: center; margin-bottom: 1.5rem;">
+        <div style="width: 48px; height: 48px; background: #eff6ff; color: #2563eb; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; font-size: 1.5rem; margin-bottom: 0.5rem;">
+          🛍️
+        </div>
+        <h2 style="font-size: 1.5rem; font-weight: 700;">Buyer Sign In</h2>
+        <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 0.25rem;">
+          Log in to your customer account to manage cart, track orders, and submit reviews
+        </p>
+      </div>
+
+      <div id="alertBox" style="display: none;" class="alert alert-error"></div>
+
+      <!-- Quick Test Credential Autofill -->
+      <div style="background: #f8fafc; border: 1px solid var(--border); padding: 0.75rem; border-radius: var(--radius-md); margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: center;">
+        <div style="font-size: 0.8rem; color: var(--text-muted);">
+          Demo Buyer: <strong>neha@sanghavimart.com</strong>
+        </div>
+        <button type="button" class="btn btn-outline btn-sm" onclick="fillBuyerCreds()">Autofill</button>
+      </div>
+
+      <form id="buyerLoginForm">
+        <div class="form-group">
+          <label class="form-label">Email Address</label>
+          <input type="email" id="email" class="form-control" placeholder="neha@sanghavimart.com" required />
+        </div>
+        <div class="form-group">
+          <div style="display: flex; justify-content: space-between;">
+            <label class="form-label">Password</label>
+            <span style="font-size: 0.75rem; color: var(--text-muted);">Salted SHA-256</span>
+          </div>
+          <input type="password" id="password" class="form-control" placeholder="••••••••" required />
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 0.5rem;">Sign In as Buyer</button>
+      </form>
+
+      <div style="text-align: center; margin-top: 1.5rem; font-size: 0.875rem; color: var(--text-muted);">
+        Don't have a buyer account? <a href="/register.html" style="color: var(--primary); font-weight: 600;">Register here</a>
+      </div>
+    </div>
+  </main>
+
+  <script src="/static/js/api.js"></script>
+  <script>
+    function fillBuyerCreds() {
+      document.getElementById('email').value = 'neha@sanghavimart.com';
+      document.getElementById('password').value = 'password123';
+    }
+
+    document.getElementById('buyerLoginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const alertBox = document.getElementById('alertBox');
+      alertBox.style.display = 'none';
+
+      try {
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        const res = await api.login({ email, password });
+
+        if (res.user.role !== 'buyer') {
+          throw new Error(`This account is registered as a ${res.user.role.toUpperCase()}. Please use the dedicated ${res.user.role} login page.`);
+        }
+
+        api.setToken(res.token);
+        api.setUser(res.user);
+        window.location.href = '/products.html';
+      } catch (err) {
+        alertBox.textContent = err.message || 'Login failed.';
+        alertBox.style.display = 'block';
+      }
+    });
+  </script>
+</body>
+</html>

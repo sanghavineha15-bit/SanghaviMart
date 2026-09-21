@@ -1,0 +1,6 @@
+{
+  "name": "SanghaviMart - C++ Drogon E-Commerce Platform",
+  "description": "Full-stack C++20 and Drogon multi-seller e-commerce capstone project with Buyer, Seller, and Admin roles, PostgreSQL schema, AI shopping assistant, and full C++ codebase.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

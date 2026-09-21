@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Register - SanghaviMart</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+<body>
+  <header class="navbar">
+    <div class="nav-container">
+      <a href="/" class="brand"><span>🛒</span> <span>SanghaviMart</span></a>
+      <a href="/" class="nav-link">← Back to Store</a>
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="form-card" style="max-width: 520px;">
+      <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem; text-align: center;">Create an Account</h2>
+      <p style="text-align: center; color: var(--text-muted); font-size: 0.875rem; margin-bottom: 1.5rem;">
+        Join as a Buyer to shop or as a Seller to list products
+      </p>
+
+      <div id="alertBox" style="display: none;" class="alert alert-error"></div>
+
+      <form id="registerForm">
+        <div class="form-group">
+          <label class="form-label">Full Name / Business Name</label>
+          <input type="text" id="name" class="form-control" placeholder="e.g. Neha Sanghavi" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email Address</label>
+          <input type="email" id="email" class="form-control" placeholder="neha@sanghavimart.com" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Account Role</label>
+          <select id="role" class="form-control" required>
+            <option value="buyer">Buyer (Shop items, place orders, review products)</option>
+            <option value="seller">Seller (List products, manage inventory & orders)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Phone Number</label>
+          <input type="tel" id="phone" class="form-control" placeholder="+91 9812345678" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Address</label>
+          <textarea id="address" class="form-control" rows="2" placeholder="Street, City, Postal Code"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password (Min 6 chars)</label>
+          <input type="password" id="password" class="form-control" placeholder="••••••••" required minlength="6" />
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 0.5rem;">Create Account</button>
+      </form>
+
+      <div style="text-align: center; margin-top: 1.5rem; font-size: 0.875rem; color: var(--text-muted);">
+        Already registered? <a href="/login.html" style="color: var(--primary); font-weight: 600;">Sign in here</a>
+      </div>
+    </div>
+  </main>
+
+  <script src="/static/js/api.js"></script>
+  <script>
+    document.getElementById('registerForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const alertBox = document.getElementById('alertBox');
+      alertBox.style.display = 'none';
+
+      const payload = {
+        name: document.getElementById('name').value,
+        email: document.getElementById('email').value,
+        role: document.getElementById('role').value,
+        phone: document.getElementById('phone').value,
+        address: document.getElementById('address').value,
+        password: document.getElementById('password').value,
+      };
+
+      try {
+        const res = await api.register(payload);
+        api.setToken(res.token);
+        api.setUser(res.user);
+
+        if (res.user.role === 'seller') {
+          window.location.href = '/seller-dashboard.html';
+        } else {
+          window.location.href = '/products.html';
+        }
+      } catch (err) {
+        alertBox.textContent = err.message || 'Registration failed.';
+        alertBox.style.display = 'block';
+      }
+    });
+  </script>
+</body>
+</html>

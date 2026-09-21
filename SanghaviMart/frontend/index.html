@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SanghaviMart - C++ Drogon Multi-Seller E-Commerce</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+<body>
+  <!-- Header / Navigation -->
+  <header class="navbar">
+    <div class="nav-container">
+      <a href="/" class="brand">
+        <span>🛒</span>
+        <span>SanghaviMart</span>
+        <span class="brand-badge">C++20 Drogon</span>
+      </a>
+
+      <div class="search-bar">
+        <input type="text" id="searchInput" placeholder="Search electronics, fashion, books..." />
+      </div>
+
+      <nav class="nav-links" id="navAuth">
+        <a href="/products.html" class="nav-link">Catalog</a>
+        <a href="/cart.html" class="nav-link">
+          Cart <span class="badge" id="cartCountBadge">0</span>
+        </a>
+        <a href="/login.html" class="btn btn-outline btn-sm">Login</a>
+        <a href="/register.html" class="btn btn-primary btn-sm">Register</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <main class="container">
+    <div style="background: linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%); color: white; padding: 3rem 2rem; border-radius: var(--radius-lg); margin-bottom: 2.5rem; text-align: center;">
+      <h1 style="font-size: 2.25rem; font-weight: 800; margin-bottom: 0.75rem;">Welcome to SanghaviMart</h1>
+      <p style="font-size: 1.1rem; color: #cbd5e1; max-width: 650px; margin: 0 auto 1.5rem;">
+        A high-concurrency multi-seller e-commerce capstone powered by <strong>C++20</strong>, <strong>Drogon</strong>, and <strong>PostgreSQL</strong>.
+      </p>
+      <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+        <a href="/products.html" class="btn btn-primary" style="background: #3b82f6;">Explore Products</a>
+        <a href="/register.html" class="btn btn-outline" style="color: white; border-color: #64748b;">Become a Seller</a>
+      </div>
+    </div>
+
+    <!-- Category Filter Bar -->
+    <section>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <h2 style="font-size: 1.5rem; font-weight: 700;">Featured Categories</h2>
+      </div>
+      <div id="categoryGrid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2.5rem;">
+        <!-- Dynamic Categories -->
+      </div>
+    </section>
+
+    <!-- Featured Products Section -->
+    <section>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <h2 style="font-size: 1.5rem; font-weight: 700;">Trending Marketplace Items</h2>
+        <a href="/products.html" class="nav-link" style="color: var(--primary);">View All →</a>
+      </div>
+      <div class="product-grid" id="featuredProducts">
+        <div style="text-align: center; padding: 2rem; color: var(--text-muted);">Loading products from C++ Drogon backend...</div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="container" style="padding: 0;">
+      <p>© 2026 SanghaviMart Capstone Project. Built with C++20, Drogon Web Framework, and PostgreSQL.</p>
+      <p style="margin-top: 0.5rem; font-size: 0.8rem; color: var(--text-muted);">Author: Neha Sanghavi | Roles: Buyer, Seller, Administrator | Non-blocking Async Architecture</p>
+    </div>
+  </footer>
+
+  <script src="/static/js/api.js"></script>
+  <script>
+    async function loadHomeData() {
+      try {
+        const prodData = await api.getProducts();
+        const container = document.getElementById('featuredProducts');
+        if (prodData.products && prodData.products.length > 0) {
+          container.innerHTML = prodData.products.slice(0, 8).map(p => `
+            <div class="product-card">
+              <img src="${p.image_url}" alt="${p.name}" class="product-image" loading="lazy" />
+              <div class="product-body">
+                <div class="product-category">${p.category_name}</div>
+                <h3 class="product-title">${p.name}</h3>
+                <p class="product-description">${p.description}</p>
+                <div class="product-meta">
+                  <span class="product-price">$${p.price.toFixed(2)}</span>
+                  <span class="stock-badge ${p.stock_quantity > 5 ? 'stock-in' : (p.stock_quantity > 0 ? 'stock-low' : 'stock-out')}">
+                    ${p.stock_quantity > 0 ? p.stock_quantity + ' in stock' : 'Out of stock'}
+                  </span>
+                </div>
+                <button class="btn btn-primary" style="margin-top: 1rem; width: 100%;" onclick="quickAddToCart(${p.id})">
+                  Add to Cart
+                </button>
+              </div>
+            </div>
+          `).join('');
+        } else {
+          container.innerHTML = `<div style="text-align: center; grid-column: 1/-1; padding: 2rem;">No products listed yet.</div>`;
+        }
+
+        // Update Cart count badge
+        const cart = await api.getCart().catch(() => null);
+        if (cart && cart.total_items) {
+          document.getElementById('cartCountBadge').textContent = cart.total_items;
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    async function quickAddToCart(id) {
+      const user = api.getUser();
+      if (!user) {
+        window.location.href = '/login.html';
+        return;
+      }
+      try {
+        await api.addToCart(id, 1);
+        alert('Product added to your cart successfully!');
+        const cart = await api.getCart();
+        document.getElementById('cartCountBadge').textContent = cart.total_items;
+      } catch (err) {
+        alert(err.message || 'Could not add to cart');
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', loadHomeData);
+  </script>
+</body>
+</html>

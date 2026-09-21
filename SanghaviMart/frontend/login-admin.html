@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Console Sign In - SanghaviMart</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+<body>
+  <header class="navbar">
+    <div class="nav-container">
+      <a href="/" class="brand"><span>🛒</span> <span>SanghaviMart</span> <span class="brand-badge" style="background:#f3e8ff;color:#7e22ce;">Admin Console</span></a>
+      <div style="display:flex;gap:1rem;align-items:center;">
+        <a href="/login-buyer.html" class="nav-link" style="font-size:0.85rem;">Buyer Login →</a>
+        <a href="/login-seller.html" class="nav-link" style="font-size:0.85rem;">Seller Login →</a>
+        <a href="/" class="btn btn-outline btn-sm">← Back to Store</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="form-card" style="border-top: 4px solid #7e22ce;">
+      <div style="text-align: center; margin-bottom: 1.5rem;">
+        <div style="width: 48px; height: 48px; background: #f3e8ff; color: #7e22ce; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; font-size: 1.5rem; margin-bottom: 0.5rem;">
+          🛡️
+        </div>
+        <div style="display: inline-block; background: #faf5ff; border: 1px solid #e9d5ff; color: #7e22ce; font-size: 0.7rem; font-weight: 700; padding: 0.2rem 0.6rem; border-radius: 9999px; text-transform: uppercase; margin-bottom: 0.5rem;">
+          Authorized Personnel Only
+        </div>
+        <h2 style="font-size: 1.5rem; font-weight: 700;">Administrator Console</h2>
+        <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 0.25rem;">
+          Root platform access for user management, catalog moderation, and transaction logs
+        </p>
+      </div>
+
+      <div id="alertBox" style="display: none;" class="alert alert-error"></div>
+
+      <!-- Quick Test Credential Autofill -->
+      <div style="background: #f8fafc; border: 1px solid var(--border); padding: 0.75rem; border-radius: var(--radius-md); margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: center;">
+        <div style="font-size: 0.8rem; color: var(--text-muted);">
+          Master Admin: <strong>admin@sanghavimart.com</strong>
+        </div>
+        <button type="button" class="btn btn-outline btn-sm" onclick="fillAdminCreds()">Autofill</button>
+      </div>
+
+      <form id="adminLoginForm">
+        <div class="form-group">
+          <label class="form-label">Administrator Email</label>
+          <input type="email" id="email" class="form-control" placeholder="admin@sanghavimart.com" required />
+        </div>
+        <div class="form-group">
+          <div style="display: flex; justify-content: space-between;">
+            <label class="form-label">Master Password</label>
+            <span style="font-size: 0.75rem; color: var(--text-muted);">Salted SHA-256</span>
+          </div>
+          <input type="password" id="password" class="form-control" placeholder="••••••••" required />
+        </div>
+        <button type="submit" class="btn btn-primary" style="background:#7e22ce;border-color:#6b21a8;width: 100%; margin-top: 0.5rem;">Sign In as Administrator</button>
+      </form>
+
+      <div style="text-align: center; margin-top: 1.5rem; font-size: 0.8rem; color: var(--text-muted);">
+        All root console access sessions are cryptographically audited and logged in the C++ database.
+      </div>
+    </div>
+  </main>
+
+  <script src="/static/js/api.js"></script>
+  <script>
+    function fillAdminCreds() {
+      document.getElementById('email').value = 'admin@sanghavimart.com';
+      document.getElementById('password').value = 'password123';
+    }
+
+    document.getElementById('adminLoginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const alertBox = document.getElementById('alertBox');
+      alertBox.style.display = 'none';
+
+      try {
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        const res = await api.login({ email, password });
+
+        if (res.user.role !== 'admin') {
+          throw new Error(`Access Denied: This account does not possess Administrator privileges.`);
+        }
+
+        api.setToken(res.token);
+        api.setUser(res.user);
+        window.location.href = '/admin-dashboard.html';
+      } catch (err) {
+        alertBox.textContent = err.message || 'Login failed.';
+        alertBox.style.display = 'block';
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,70 @@
+{
+  "listeners": [
+    {
+      "address": "0.0.0.0",
+      "port": 8080,
+      "https": false
+    }
+  ],
+  "db_clients": [
+    {
+      "name": "default",
+      "rdbms": "postgresql",
+      "host": "127.0.0.1",
+      "port": 5432,
+      "dbname": "sanghavimart_db",
+      "user": "postgres",
+      "passwd": "password",
+      "is_fast": false,
+      "connection_number": 8,
+      "filename": ""
+    }
+  ],
+  "app": {
+    "threads_num": 4,
+    "enable_session": true,
+    "session_timeout": 86400,
+    "document_root": "./frontend",
+    "home_page": "index.html",
+    "static_file_headers": [
+      {
+        "path": "/static",
+        "headers": [
+          {
+            "field": "Cache-Control",
+            "value": "max-age=3600"
+          }
+        ]
+      }
+    ],
+    "upload_path": "./static/uploads",
+    "file_types": [
+      "png",
+      "jpg",
+      "jpeg",
+      "webp",
+      "svg",
+      "pdf"
+    ],
+    "max_connections": 100000,
+    "max_connections_per_ip": 0,
+    "load_dynamic_views": false,
+    "dynamic_views_path": [
+      "./views"
+    ],
+    "log": {
+      "log_path": "./logs",
+      "logfile_base_name": "sanghavimart",
+      "log_size_limit": 100000000,
+      "max_files": 5,
+      "log_level": "DEBUG",
+      "display_local_time": true
+    },
+    "custom_config": {
+      "jwt_secret": "SanghaviMart_Secure_Capstone_Jwt_Secret_Key_2026_C++20",
+      "jwt_issuer": "SanghaviMart",
+      "jwt_expiry_seconds": 86400,
+      "enable_ai_chatbot": true
+    }
+  }
+}
