@@ -50,7 +50,7 @@ in V1; legacy controllers documented as compat layer)
 ## Sanitizers — PARTIAL (configured; run in CI)
 ## CI/CD — PASS (config present)
 ## Deployment — PARTIAL (artifacts present; not deployed from here)
-## Documentation — PASS
+## Documentation — PASS (README §§9–10, CHANGELOG, CONTRIBUTING, audit)
 
 ## Remaining Issues
 1. Execute Linux CI once (build, ctest incl. PG/concurrency, tidy, ASan/UBSan).

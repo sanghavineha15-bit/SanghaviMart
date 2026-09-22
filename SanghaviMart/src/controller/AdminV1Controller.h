@@ -8,11 +8,10 @@ namespace sanghavimart::controller {
 class AdminV1Controller : public drogon::HttpController<AdminV1Controller> {
   public:
     METHOD_LIST_BEGIN
-    ADD_METHOD_TO(AdminV1Controller::Users, "/api/v1/admin/users", drogon::Get);
-    ADD_METHOD_TO(AdminV1Controller::Orders, "/api/v1/admin/orders", drogon::Get);
-    ADD_METHOD_TO(AdminV1Controller::Stats, "/api/v1/admin/stats", drogon::Get);
-    ADD_METHOD_TO(AdminV1Controller::RemoveProduct, "/api/v1/admin/products/{id}",
-                  drogon::Delete);
+    ADD_METHOD_TO(AdminV1Controller::Users, "/api/v1/admin/users", drogon::Get, "sanghavimart::filter::LoggingFilter");
+    ADD_METHOD_TO(AdminV1Controller::Orders, "/api/v1/admin/orders", drogon::Get, "sanghavimart::filter::LoggingFilter");
+    ADD_METHOD_TO(AdminV1Controller::Stats, "/api/v1/admin/stats", drogon::Get, "sanghavimart::filter::LoggingFilter");
+    ADD_METHOD_TO(AdminV1Controller::RemoveProduct, "/api/v1/admin/products/{id}", drogon::Delete, "sanghavimart::filter::LoggingFilter");
     METHOD_LIST_END
 
     void Users(const drogon::HttpRequestPtr& req,

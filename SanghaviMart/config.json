@@ -20,6 +20,16 @@
       "filename": ""
     }
   ],
+  "plugins": [
+    {
+      "name": "sanghavimart::plugin::DatabasePlugin",
+      "dependencies": [],
+      "config": {
+        "migrations_dir": "./db/migrations",
+        "run_on_startup": true
+      }
+    }
+  ],
   "app": {
     "threads_num": 4,
     "enable_session": true,

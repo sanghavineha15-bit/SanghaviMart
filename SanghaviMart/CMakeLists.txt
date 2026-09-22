@@ -21,7 +21,9 @@ find_package(Threads REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
 find_package(CURL REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
+find_package(libpqxx CONFIG REQUIRED)
 find_library(SODIUM_LIB sodium REQUIRED)
+find_path(SODIUM_INCLUDE_DIR sodium.h REQUIRED)
 find_library(ARGON2_LIB argon2)
 find_package(PkgConfig QUIET)
 if(PkgConfig_FOUND)
@@ -34,12 +36,14 @@ file(GLOB_RECURSE APP_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/filters/*.cc
     ${CMAKE_CURRENT_SOURCE_DIR}/src/controller/*.cc
     ${CMAKE_CURRENT_SOURCE_DIR}/src/service/*.cc
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin/*.cc
 )
 
 add_executable(${PROJECT_NAME} ${APP_SOURCES})
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${SODIUM_INCLUDE_DIR}
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
@@ -50,13 +54,11 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     spdlog::spdlog
     CURL::libcurl
     nlohmann_json::nlohmann_json
+    libpqxx::pqxx
     ${SODIUM_LIB}
 )
 if(ARGON2_LIB)
     target_link_libraries(${PROJECT_NAME} PRIVATE ${ARGON2_LIB})
-endif()
-if(PQXX_LIBRARIES)
-    target_link_libraries(${PROJECT_NAME} PRIVATE ${PQXX_LIBRARIES})
 endif()
 
 foreach(SAN OPT VAL)
@@ -118,9 +120,11 @@ if(BUILD_TESTS)
     if(TEST_SOURCES)
         add_executable(sanghavimart_tests ${TEST_SOURCES})
         target_include_directories(sanghavimart_tests PRIVATE
-            ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/src)
+            ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/src
+            ${SODIUM_INCLUDE_DIR})
         target_link_libraries(sanghavimart_tests PRIVATE
-            GTest::gtest GTest::gmock spdlog::spdlog ${SODIUM_LIB} CURL::libcurl)
+            GTest::gtest GTest::gmock spdlog::spdlog ${SODIUM_LIB} CURL::libcurl
+            nlohmann_json::nlohmann_json)
         if(ENABLE_ASAN)
             target_compile_options(sanghavimart_tests PRIVATE -fsanitize=address -fno-omit-frame-pointer)
             target_link_options(sanghavimart_tests PRIVATE -fsanitize=address)

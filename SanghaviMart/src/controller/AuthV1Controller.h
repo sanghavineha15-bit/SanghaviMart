@@ -7,10 +7,10 @@ namespace sanghavimart::controller {
 class AuthV1Controller : public drogon::HttpController<AuthV1Controller> {
   public:
     METHOD_LIST_BEGIN
-    ADD_METHOD_TO(AuthV1Controller::Register, "/api/v1/auth/register", drogon::Post);
-    ADD_METHOD_TO(AuthV1Controller::Login, "/api/v1/auth/login", drogon::Post);
-    ADD_METHOD_TO(AuthV1Controller::Logout, "/api/v1/auth/logout", drogon::Post);
-    ADD_METHOD_TO(AuthV1Controller::Me, "/api/v1/auth/me", drogon::Get);
+    ADD_METHOD_TO(AuthV1Controller::Register, "/api/v1/auth/register", drogon::Post, "sanghavimart::filter::LoggingFilter");
+    ADD_METHOD_TO(AuthV1Controller::Login, "/api/v1/auth/login", drogon::Post, "sanghavimart::filter::LoggingFilter");
+    ADD_METHOD_TO(AuthV1Controller::Logout, "/api/v1/auth/logout", drogon::Post, "sanghavimart::filter::LoggingFilter");
+    ADD_METHOD_TO(AuthV1Controller::Me, "/api/v1/auth/me", drogon::Get, "sanghavimart::filter::LoggingFilter");
     METHOD_LIST_END
 
     void Register(const drogon::HttpRequestPtr& req,

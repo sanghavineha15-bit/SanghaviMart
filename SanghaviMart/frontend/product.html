@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Product - SanghaviMart</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+<body>
+  <header class="navbar">
+    <div class="nav-container">
+      <a href="/" class="brand"><span>🛒</span><span>SanghaviMart</span></a>
+      <nav class="nav-links">
+        <a href="/products.html" class="nav-link">Catalog</a>
+        <a href="/cart.html" class="nav-link">Cart</a>
+      </nav>
+    </div>
+  </header>
+  <main class="container" id="main"><p>Loading...</p></main>
+  <script src="/static/js/api.js"></script>
+  <script>
+    const id = Number(new URLSearchParams(window.location.search).get('id'));
+    async function load() {
+      if (!id) { document.getElementById('main').innerHTML = '<p>Missing product id.</p>'; return; }
+      try {
+        const d = await api.getProductById(id);
+        const p = d.product;
+        const revs = await api.getProductReviews(id).catch(() => ({ reviews: [], average_rating: 0 }));
+        document.getElementById('main').innerHTML = `
+          <div class="product-card" style="max-width:720px;">
+            <img src="${escapeHtml(p.image_url)}" alt="${escapeHtml(p.name)}" class="product-image" />
+            <div class="product-body">
+              <div class="product-category">${escapeHtml(p.category_name)} · Sold by ${escapeHtml(p.seller_name)}</div>
+              <h1>${escapeHtml(p.name)}</h1>
+              <p>${escapeHtml(p.description)}</p>
+              <div class="product-meta">
+                <span class="product-price">$${Number(p.price).toFixed(2)}</span>
+                <span>★ ${Number(p.average_rating).toFixed(1)} (${Number(p.review_count)} reviews)</span>
+                <span>${p.stock_quantity > 0 ? Number(p.stock_quantity) + ' in stock' : 'Out of stock'}</span>
+              </div>
+              <button class="btn btn-primary" onclick="add()" ${p.stock_quantity <= 0 ? 'disabled' : ''}>Add to Cart</button>
+            </div>
+          </div>
+          <h2 style="margin-top:2rem;">Reviews</h2>
+          <div id="revs">${(revs.reviews || []).map(r => `
+            <div class="product-card" style="margin-bottom:.75rem;"><div class="product-body">
+              <strong>${escapeHtml(r.buyer_name)}</strong> · ★ ${Number(r.rating)}/5
+              <p>${escapeHtml(r.comment)}</p>
+            </div></div>`).join('') || '<p>No reviews yet.</p>'}</div>
+          <h3>Write a review (verified buyers only)</h3>
+          <form onsubmit="return submitReview(event)">
+            <label>Rating (1-5): <input type="number" id="rating" min="1" max="5" value="5" required /></label><br/>
+            <textarea id="comment" rows="3" cols="50" placeholder="Your review..." required></textarea><br/>
+            <button class="btn btn-primary" type="submit">Submit Review</button>
+          </form>`;
+      } catch (e) { document.getElementById('main').innerHTML = `<p>Failed: ${escapeHtml(e.message)}</p>`; }
+    }
+    async function add() {
+      if (!api.getUser()) { window.location.href = '/login.html'; return; }
+      try { await api.addToCart(id, 1); alert('Added to cart'); } catch (e) { alert(e.message); }
+    }
+    async function submitReview(ev) {
+      ev.preventDefault();
+      if (!api.getUser()) { window.location.href = '/login.html'; return false; }
+      try {
+        await api.addReview({ product_id: id, rating: Number(document.getElementById('rating').value), comment: document.getElementById('comment').value });
+        alert('Review submitted'); load();
+      } catch (e) { alert(e.message); }
+      return false;
+    }
+    load();
+  </script>
+</body>
+</html>

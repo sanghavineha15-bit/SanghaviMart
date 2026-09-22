@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Orders - SanghaviMart</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+<body>
+  <header class="navbar">
+    <div class="nav-container">
+      <a href="/" class="brand"><span>🛒</span><span>SanghaviMart</span></a>
+      <nav class="nav-links">
+        <a href="/products.html" class="nav-link">Catalog</a>
+        <a href="/cart.html" class="nav-link">Cart</a>
+      </nav>
+    </div>
+  </header>
+  <main class="container">
+    <h1>Order History</h1>
+    <div id="orders"><p>Loading...</p></div>
+  </main>
+  <script src="/static/js/api.js"></script>
+  <script>
+    if (!api.getUser()) window.location.href = '/login.html';
+    async function load() {
+      try {
+        const d = await api.getOrders();
+        document.getElementById('orders').innerHTML = (d.orders || []).map(o => `
+          <div class="product-card" style="margin-bottom:1rem;"><div class="product-body">
+            <h3>${escapeHtml(o.order_number)} <small>(${escapeHtml(o.status)})</small></h3>
+            <p>Total: $${Number(o.total_amount).toFixed(2)} · ${Number(o.item_count)} item(s) · ${escapeHtml(o.created_at)}</p>
+            <p>Ship to: ${escapeHtml(o.shipping_name)}, ${escapeHtml(o.shipping_city)}</p>
+            <button onclick="detail(${Number(o.id)})">View details</button>
+            <div id="od-${Number(o.id)}"></div>
+          </div></div>`).join('') || '<p>No orders yet.</p>';
+      } catch (e) { document.getElementById('orders').innerHTML = `<p>Failed: ${escapeHtml(e.message)}</p>`; }
+    }
+    async function detail(id) {
+      try {
+        const d = await api.getOrderById(id);
+        const items = (d.order && d.order.items) || [];
+        document.getElementById('od-' + id).innerHTML =
+          '<ul>' + items.map(it => `<li>${escapeHtml(it.product_name)} × ${Number(it.quantity)} — $${Number(it.subtotal).toFixed(2)}</li>`).join('') + '</ul>';
+      } catch (e) { alert(e.message); }
+    }
+    load();
+  </script>
+</body>
+</html>

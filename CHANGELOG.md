@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.3.0] — 2026-09-22
+- Added `src/plugin/DatabasePlugin` (startup migrations + `SELECT 1` check,
+  env-only credentials, never crashes boot) + `config.json` plugin wiring.
+- CMake: `find_package(libpqxx)`, sodium includes, `src/plugin` glob,
+  `nlohmann_json` for tests.
+- Global `setExceptionHandler` in `main.cpp` (safe generic 500s).
+- `LoggingFilter` (request IDs) attached to all 26 `/api/v1` routes.
+- Completed vanilla frontend: `products.html`, `product.html`, `cart.html`,
+  `checkout.html`, `orders.html`, `seller-dashboard.html`,
+  `admin-dashboard.html` (real APIs only, `escapeHtml` everywhere).
+- README §10 operations runbook.
+
 ## [1.2.0] — 2026-09-22
 - Added V5 backfill migration (cents columns, UPPER roles/statuses, relaxed
   legacy NOT NULLs, sync triggers) — legacy + V1 dual-write.

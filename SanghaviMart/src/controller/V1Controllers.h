@@ -8,7 +8,7 @@ namespace sanghavimart::controller {
 class HealthController : public drogon::HttpController<HealthController> {
   public:
     METHOD_LIST_BEGIN
-    ADD_METHOD_TO(HealthController::Check, "/api/v1/health", drogon::Get);
+    ADD_METHOD_TO(HealthController::Check, "/api/v1/health", drogon::Get, "sanghavimart::filter::LoggingFilter");
     METHOD_LIST_END
     void Check(const drogon::HttpRequestPtr&,
                std::function<void(const drogon::HttpResponsePtr&)>&& cb) {
@@ -35,7 +35,7 @@ class HealthController : public drogon::HttpController<HealthController> {
 class ChatV1Controller : public drogon::HttpController<ChatV1Controller> {
   public:
     METHOD_LIST_BEGIN
-    ADD_METHOD_TO(ChatV1Controller::Chat, "/api/v1/chat", drogon::Post);
+    ADD_METHOD_TO(ChatV1Controller::Chat, "/api/v1/chat", drogon::Post, "sanghavimart::filter::LoggingFilter");
     METHOD_LIST_END
     void Chat(const drogon::HttpRequestPtr& req,
               std::function<void(const drogon::HttpResponsePtr&)>&& cb);

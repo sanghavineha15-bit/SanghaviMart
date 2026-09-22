@@ -8,10 +8,10 @@ namespace sanghavimart::controller {
 class OrderV1Controller : public drogon::HttpController<OrderV1Controller> {
   public:
     METHOD_LIST_BEGIN
-    ADD_METHOD_TO(OrderV1Controller::Checkout, "/api/v1/orders/checkout", drogon::Post);
-    ADD_METHOD_TO(OrderV1Controller::List, "/api/v1/orders", drogon::Get);
-    ADD_METHOD_TO(OrderV1Controller::Get, "/api/v1/orders/{id}", drogon::Get);
-    ADD_METHOD_TO(OrderV1Controller::SetStatus, "/api/v1/orders/{id}/status", drogon::Put);
+    ADD_METHOD_TO(OrderV1Controller::Checkout, "/api/v1/orders/checkout", drogon::Post, "sanghavimart::filter::LoggingFilter");
+    ADD_METHOD_TO(OrderV1Controller::List, "/api/v1/orders", drogon::Get, "sanghavimart::filter::LoggingFilter");
+    ADD_METHOD_TO(OrderV1Controller::Get, "/api/v1/orders/{id}", drogon::Get, "sanghavimart::filter::LoggingFilter");
+    ADD_METHOD_TO(OrderV1Controller::SetStatus, "/api/v1/orders/{id}/status", drogon::Put, "sanghavimart::filter::LoggingFilter");
     METHOD_LIST_END
 
     void Checkout(const drogon::HttpRequestPtr& req,

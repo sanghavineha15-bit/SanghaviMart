@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Console - SanghaviMart</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+<body>
+  <header class="navbar">
+    <div class="nav-container">
+      <a href="/" class="brand"><span>🛒</span><span>SanghaviMart</span></a>
+      <nav class="nav-links"><a href="/products.html" class="nav-link">Catalog</a></nav>
+    </div>
+  </header>
+  <main class="container">
+    <h1>Admin Console</h1>
+    <p><small>Server returns 403 for non-admins; this page only arranges the view.</small></p>
+    <h2>Platform Stats</h2><div id="stats"><p>Loading...</p></div>
+    <h2>Users</h2><div id="users"><p>Loading...</p></div>
+    <h2>Orders</h2><div id="orders"><p>Loading...</p></div>
+    <h2>Listings (moderate)</h2><div id="products"><p>Loading...</p></div>
+  </main>
+  <script src="/static/js/api.js"></script>
+  <script>
+    if (!api.getUser()) window.location.href = '/login-admin.html';
+    async function load() {
+      try {
+        const s = await api.getAdminStats();
+        document.getElementById('stats').innerHTML =
+          `<p>Buyers: ${Number(s.stats.total_buyers)} · Sellers: ${Number(s.stats.total_sellers)} · Active products: ${Number(s.stats.active_products)} · Orders: ${Number(s.stats.total_orders)} · Revenue: $${Number(s.stats.total_revenue).toFixed(2)}</p>`;
+      } catch (e) { document.getElementById('stats').innerHTML = `<p>Failed: ${escapeHtml(e.message)}</p>`; }
+      try {
+        const u = await api.getAdminUsers();
+        document.getElementById('users').innerHTML = (u.users || []).map(x =>
+          `<div>#${Number(x.id)} ${escapeHtml(x.name)} (${escapeHtml(x.email)}) — ${escapeHtml(x.role)}</div>`).join('');
+      } catch (e) { document.getElementById('users').innerHTML = `<p>Failed: ${escapeHtml(e.message)}</p>`; }
+      try {
+        const o = await api.getAdminOrders();
+        document.getElementById('orders').innerHTML = (o.orders || []).map(x =>
+          `<div>${escapeHtml(x.order_number)} — ${escapeHtml(x.buyer_name)} — $${Number(x.total_amount).toFixed(2)} — ${escapeHtml(x.status)}</div>`).join('');
+      } catch (e) { document.getElementById('orders').innerHTML = `<p>Failed: ${escapeHtml(e.message)}</p>`; }
+      try {
+        const p = await api.getAdminProducts();
+        document.getElementById('products').innerHTML = (p.products || []).map(x =>
+          `<div>${escapeHtml(x.name)} — ${escapeHtml(x.seller_name)} — $${Number(x.price).toFixed(2)}
+           <button onclick="removeP(${Number(x.id)})">Remove</button></div>`).join('');
+      } catch (e) { document.getElementById('products').innerHTML = `<p>Failed: ${escapeHtml(e.message)}</p>`; }
+    }
+    async function removeP(id) {
+      if (!confirm('Remove listing?')) return;
+      try { await api.adminDeleteProduct(id); load(); } catch (e) { alert(e.message); }
+    }
+    load();
+  </script>
+</body>
+</html>

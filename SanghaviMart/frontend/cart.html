@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cart - SanghaviMart</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+<body>
+  <header class="navbar">
+    <div class="nav-container">
+      <a href="/" class="brand"><span>🛒</span><span>SanghaviMart</span></a>
+      <nav class="nav-links">
+        <a href="/products.html" class="nav-link">Catalog</a>
+        <a href="/orders.html" class="nav-link">Orders</a>
+      </nav>
+    </div>
+  </header>
+  <main class="container">
+    <h1>Your Cart</h1>
+    <div id="cart"><p>Loading...</p></div>
+  </main>
+  <script src="/static/js/api.js"></script>
+  <script>
+    if (!api.getUser()) window.location.href = '/login.html';
+    async function load() {
+      try {
+        const c = await api.getCart();
+        const el = document.getElementById('cart');
+        if (!c.items || c.items.length === 0) { el.innerHTML = '<p>Cart is empty. <a href="/products.html">Browse products</a></p>'; return; }
+        el.innerHTML = `
+          <table style="width:100%;border-collapse:collapse;">
+            <thead><tr><th>Product</th><th>Price</th><th>Qty</th><th>Subtotal</th><th></th></tr></thead>
+            <tbody>${c.items.map(it => `
+              <tr>
+                <td>${escapeHtml(it.name)}</td>
+                <td>$${Number(it.price).toFixed(2)}</td>
+                <td>
+                  <button onclick="setQty(${Number(it.id)}, ${Number(it.quantity) - 1})">−</button>
+                  ${Number(it.quantity)}
+                  <button onclick="setQty(${Number(it.id)}, ${Number(it.quantity) + 1})">+</button>
+                  <small>(max ${Number(it.stock_quantity)})</small>
+                </td>
+                <td>$${Number(it.subtotal).toFixed(2)}</td>
+                <td><button onclick="rm(${Number(it.id)})">Remove</button></td>
+              </tr>`).join('')}</tbody>
+          </table>
+          <h3>Total: $${Number(c.total_price).toFixed(2)} (${Number(c.total_items)} items)</h3>
+          <button class="btn" onclick="clearAll()">Clear Cart</button>
+          <a href="/checkout.html" class="btn btn-primary">Proceed to Checkout</a>`;
+      } catch (e) { document.getElementById('cart').innerHTML = `<p>Failed: ${escapeHtml(e.message)}</p>`; }
+    }
+    async function setQty(itemId, qty) {
+      try {
+        if (qty <= 0) await api.removeCartItem(itemId);
+        else await api.updateCartItem(itemId, qty);
+        load();
+      } catch (e) { alert(e.message); }
+    }
+    async function rm(itemId) { try { await api.removeCartItem(itemId); load(); } catch (e) { alert(e.message); } }
+    async function clearAll() { if (confirm('Clear cart?')) { await api.clearCart(); load(); } }
+    load();
+  </script>
+</body>
+</html>

@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Checkout - SanghaviMart</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+<body>
+  <header class="navbar">
+    <div class="nav-container">
+      <a href="/" class="brand"><span>🛒</span><span>SanghaviMart</span></a>
+      <nav class="nav-links"><a href="/cart.html" class="nav-link">Cart</a></nav>
+    </div>
+  </header>
+  <main class="container">
+    <h1>Checkout</h1>
+    <div id="summary"><p>Loading cart...</p></div>
+    <form id="form" onsubmit="return place(event)">
+      <label>Full name: <input id="name" required /></label><br/>
+      <label>Phone: <input id="phone" required /></label><br/>
+      <label>Address: <input id="addr" required /></label><br/>
+      <label>City: <input id="city" required /></label><br/>
+      <label>Postal code: <input id="zip" required /></label><br/>
+      <label>Payment:
+        <select id="pay">
+          <option value="cod_mock">Cash on Delivery (mock)</option>
+          <option value="card_mock">Card (mock)</option>
+          <option value="upi_mock">UPI (mock)</option>
+        </select>
+      </label><br/>
+      <button class="btn btn-primary" type="submit">Place Order (mock payment)</button>
+    </form>
+    <div id="done"></div>
+  </main>
+  <script src="/static/js/api.js"></script>
+  <script>
+    if (!api.getUser()) window.location.href = '/login.html';
+    async function load() {
+      try {
+        const c = await api.getCart();
+        document.getElementById('summary').innerHTML =
+          `<p>${Number(c.total_items)} item(s), total <strong>$${Number(c.total_price).toFixed(2)}</strong>. Prices and stock are re-validated server-side at checkout.</p>`;
+        if (!c.items || c.items.length === 0) document.getElementById('form').style.display = 'none';
+      } catch (e) { document.getElementById('summary').innerHTML = `<p>Failed: ${escapeHtml(e.message)}</p>`; }
+    }
+    async function place(ev) {
+      ev.preventDefault();
+      try {
+        const o = await api.createOrder({
+          shipping_name: document.getElementById('name').value,
+          shipping_phone: document.getElementById('phone').value,
+          shipping_address: document.getElementById('addr').value,
+          shipping_city: document.getElementById('city').value,
+          shipping_postal_code: document.getElementById('zip').value,
+          payment_method: document.getElementById('pay').value,
+        });
+        document.getElementById('done').innerHTML =
+          `<h2>Order placed: ${escapeHtml(o.order_number)}</h2><p>Status: ${escapeHtml(o.status)}. <a href="/orders.html">View orders</a></p>`;
+        document.getElementById('form').style.display = 'none';
+      } catch (e) { alert(e.message); }
+      return false;
+    }
+    load();
+  </script>
+</body>
+</html>

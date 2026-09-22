@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Catalog - SanghaviMart</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+<body>
+  <header class="navbar">
+    <div class="nav-container">
+      <a href="/" class="brand"><span>🛒</span><span>SanghaviMart</span></a>
+      <div class="search-bar"><input type="text" id="q" placeholder="Search products..." /></div>
+      <nav class="nav-links">
+        <a href="/cart.html" class="nav-link">Cart <span class="badge" id="cartCount">0</span></a>
+        <a href="/orders.html" class="nav-link">Orders</a>
+        <a href="/login.html" class="nav-link" id="authLink">Login</a>
+      </nav>
+    </div>
+  </header>
+  <main class="container">
+    <h1>Product Catalog</h1>
+    <div id="cats" style="display:flex;gap:.5rem;flex-wrap:wrap;margin:1rem 0;"></div>
+    <div class="product-grid" id="grid"><p>Loading...</p></div>
+  </main>
+  <script src="/static/js/api.js"></script>
+  <script>
+    let activeCat = '';
+    async function loadCats() {
+      try {
+        const d = await api.getCategories();
+        const el = document.getElementById('cats');
+        el.innerHTML = `<button class="btn btn-sm" data-c="">All</button>` +
+          (d.categories || []).map(c =>
+            `<button class="btn btn-sm" data-c="${escapeHtml(c.slug)}">${escapeHtml(c.name)}</button>`).join('');
+        el.querySelectorAll('button').forEach(b => b.onclick = () => { activeCat = b.dataset.c; load(); });
+      } catch (e) { /* categories optional */ }
+    }
+    async function load() {
+      const q = document.getElementById('q').value;
+      const params = {};
+      if (q) params.q = q;
+      if (activeCat) params.category = activeCat;
+      try {
+        const d = await api.getProducts(params);
+        const grid = document.getElementById('grid');
+        grid.innerHTML = (d.products || []).map(p => `
+          <div class="product-card">
+            <img src="${escapeHtml(p.image_url)}" alt="${escapeHtml(p.name)}" class="product-image" loading="lazy" />
+            <div class="product-body">
+              <div class="product-category">${escapeHtml(p.category_name)}</div>
+              <h3 class="product-title"><a href="/product.html?id=${Number(p.id)}">${escapeHtml(p.name)}</a></h3>
+              <p class="product-description">${escapeHtml(p.description)}</p>
+              <div class="product-meta">
+                <span class="product-price">$${Number(p.price).toFixed(2)}</span>
+                <span>${p.stock_quantity > 0 ? Number(p.stock_quantity) + ' in stock' : 'Out of stock'}</span>
+              </div>
+              <button class="btn btn-primary" style="width:100%;margin-top:.75rem;" onclick="add(${Number(p.id)})" ${p.stock_quantity <= 0 ? 'disabled' : ''}>Add to Cart</button>
+            </div>
+          </div>`).join('') || '<p>No products found.</p>';
+      } catch (e) { document.getElementById('grid').innerHTML = `<p>Failed to load: ${escapeHtml(e.message)}</p>`; }
+    }
+    async function add(id) {
+      if (!api.getUser()) { window.location.href = '/login.html'; return; }
+      try { await api.addToCart(id, 1); alert('Added to cart'); refreshBadge(); }
+      catch (e) { alert(e.message); }
+    }
+    async function refreshBadge() {
+      try { const c = await api.getCart(); document.getElementById('cartCount').textContent = c.total_items || 0; }
+      catch (e) { /* logged out */ }
+    }
+    document.getElementById('q').addEventListener('input', load);
+    loadCats().then(load);
+    refreshBadge();
+  </script>
+</body>
+</html>

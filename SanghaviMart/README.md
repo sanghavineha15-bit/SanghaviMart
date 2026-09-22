@@ -259,3 +259,34 @@ legacy columns to canonical cents/UPPER vocabularies with sync triggers.
 Build: `cmake --preset linux-release && cmake --build build/release`
 (requires vcpkg manifest + PostgreSQL 15+). Tests: `ctest --test-dir
 build/debug` (unit always; PG/concurrency need `POSTGRES_TEST_DB`).
+
+---
+
+## 10. Operations (PostgreSQL-only)
+
+PostgreSQL 15+ is the only supported database — no SQLite paths exist.
+
+```bash
+# 1. Database
+createdb sanghavimart_db
+# Migrations V1-V5 apply automatically at startup via DatabasePlugin,
+# then load demo data:
+psql -d sanghavimart_db -f SanghaviMart/db/seed.sql
+
+# 2. Environment (never commit secrets)
+cp SanghaviMart/.env.example .env   # set POSTGRES_*, GEMINI_API_KEY
+
+# 3. Build & test (Linux + vcpkg)
+export VCPKG_ROOT=~/vcpkg
+cmake --preset linux-release && cmake --build build/release
+POSTGRES_TEST_DB=sanghavimart_test_db ctest --test-dir build/debug
+
+# 4. Run
+./build/release/SanghaviMart            # serves ./frontend + /api/*
+curl localhost:8080/api/v1/health      # {"status":"UP","db":"UP"}
+```
+
+Troubleshooting: health reports `"db":"DOWN"` when PostgreSQL is unreachable;
+the server still boots (migrations log and continue). Admin has no signup —
+seed `admin@sanghavimart.com` and rotate its hash immediately. Old lowercase
+JWTs were invalidated by the V5 UPPER normalization; users re-login.

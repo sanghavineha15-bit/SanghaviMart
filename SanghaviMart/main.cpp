@@ -51,6 +51,23 @@ int main(int argc, char* argv[]) {
         resp->addHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
     });
 
+    // Global exception handler (§28): unhandled std::exceptions escaping any
+    // handler become a safe generic JSON error. Internals go to the log only —
+    // never stack traces, paths, SQL, or secrets to the client.
+    drogon::app().setExceptionHandler(
+        [](const std::exception& e, const drogon::HttpRequestPtr&,
+           std::function<void(const drogon::HttpResponsePtr&)>&& callback) {
+            LOG_ERROR << "unhandled exception: " << e.what();
+            Json::Value err;
+            err["success"] = false;
+            err["data"] = Json::Value::null;
+            err["error"]["code"] = "INTERNAL_ERROR";
+            err["error"]["message"] = "Internal server error.";
+            auto resp = drogon::HttpResponse::newHttpJsonResponse(err);
+            resp->setStatusCode(drogon::k500InternalServerError);
+            callback(resp);
+        });
+
     // Custom 404 handler returning JSON for /api routes or HTML fallback
     drogon::app().setCustom404Page([](const drogon::HttpRequestPtr& req) {
         if (req->path().rfind("/api", 0) == 0) {

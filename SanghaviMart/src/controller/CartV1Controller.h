@@ -7,11 +7,11 @@ namespace sanghavimart::controller {
 class CartV1Controller : public drogon::HttpController<CartV1Controller> {
   public:
     METHOD_LIST_BEGIN
-    ADD_METHOD_TO(CartV1Controller::Show, "/api/v1/cart", drogon::Get);
-    ADD_METHOD_TO(CartV1Controller::Add, "/api/v1/cart", drogon::Post);
-    ADD_METHOD_TO(CartV1Controller::SetQty, "/api/v1/cart/{productId}", drogon::Put);
-    ADD_METHOD_TO(CartV1Controller::Remove, "/api/v1/cart/{productId}", drogon::Delete);
-    ADD_METHOD_TO(CartV1Controller::Clear, "/api/v1/cart", drogon::Delete);
+    ADD_METHOD_TO(CartV1Controller::Show, "/api/v1/cart", drogon::Get, "sanghavimart::filter::LoggingFilter");
+    ADD_METHOD_TO(CartV1Controller::Add, "/api/v1/cart", drogon::Post, "sanghavimart::filter::LoggingFilter");
+    ADD_METHOD_TO(CartV1Controller::SetQty, "/api/v1/cart/{productId}", drogon::Put, "sanghavimart::filter::LoggingFilter");
+    ADD_METHOD_TO(CartV1Controller::Remove, "/api/v1/cart/{productId}", drogon::Delete, "sanghavimart::filter::LoggingFilter");
+    ADD_METHOD_TO(CartV1Controller::Clear, "/api/v1/cart", drogon::Delete, "sanghavimart::filter::LoggingFilter");
     METHOD_LIST_END
 
     void Show(const drogon::HttpRequestPtr& req,
