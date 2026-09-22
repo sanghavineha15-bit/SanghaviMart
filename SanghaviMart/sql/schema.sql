@@ -1,6 +1,6 @@
 -- ============================================================================
 -- SanghaviMart: Full-Stack C++ Drogon Multi-Seller E-Commerce Database Schema
--- Database: PostgreSQL 14+ (Compatible with SQLite with standard syntax adjustments)
+-- Database: PostgreSQL 15+ ONLY (no SQLite paths).
 -- ============================================================================
 
 -- Drop tables if they exist to allow clean migration

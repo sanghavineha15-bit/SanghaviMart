@@ -39,8 +39,8 @@ The system implements strict Role-Based Access Control (RBAC) across three key u
 |---|---|
 | **Programming Language** | C++20 (ISO/IEC 14882:2020) |
 | **Web Framework** | Drogon Framework (libtrantor non-blocking async I/O) |
-| **Database** | PostgreSQL 14+ / SQLite3 compatible |
-| **Build System** | CMake 3.16+ |
+| **Database** | PostgreSQL 15+ only (no SQLite paths) |
+| **Build System** | CMake 3.25+ |
 | **Security & Auth** | JSON Web Tokens (HMAC-SHA256) + Salted SHA-256 / Bcrypt password hashing |
 | **Frontend** | Semantic HTML5, Vanilla CSS3 (Custom Design System), JavaScript (ES6+) |
 | **AI Assistant** | Google Gemini API (`gemini-3.8-flash`) / Resilient internal e-commerce matcher |
