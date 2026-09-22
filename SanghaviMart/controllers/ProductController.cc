@@ -11,34 +11,36 @@ void ProductController::getAllProducts(const drogon::HttpRequestPtr& req,
     std::string search = req->getParameter("q");
     std::string sellerParam = req->getParameter("seller_id");
 
-    std::stringstream sql;
-    sql << "SELECT p.id, p.seller_id, u.name AS seller_name, p.category_id, c.name AS category_name, "
-        << "p.name, p.description, p.price, p.stock_quantity, p.image_url, p.is_active, p.created_at, "
-        << "COALESCE(AVG(r.rating), 0) AS average_rating, COUNT(r.id) AS review_count "
-        << "FROM products p "
-        << "JOIN users u ON p.seller_id = u.id "
-        << "JOIN categories c ON p.category_id = c.id "
-        << "LEFT JOIN reviews r ON p.id = r.product_id "
-        << "WHERE p.is_active = TRUE ";
+    // SECURITY: all user input is bound as parameters ($1..). LIKE patterns
+    // are passed as bound values, never interpolated.
+    const std::string base =
+        "SELECT p.id, p.seller_id, u.name AS seller_name, p.category_id, c.name AS category_name, "
+        "p.name, p.description, p.price, p.stock_quantity, p.image_url, p.is_active, p.created_at, "
+        "COALESCE(AVG(r.rating), 0) AS average_rating, COUNT(r.id) AS review_count "
+        "FROM products p "
+        "JOIN users u ON p.seller_id = u.id "
+        "JOIN categories c ON p.category_id = c.id "
+        "LEFT JOIN reviews r ON p.id = r.product_id "
+        "WHERE p.is_active = TRUE "
+        "AND ($1 = '' OR c.slug = $1 OR c.name ILIKE $4) "
+        "AND ($2 = '' OR p.name ILIKE $5 OR p.description ILIKE $5) "
+        "AND ($3 = 0 OR p.seller_id = $3) "
+        "GROUP BY p.id, u.name, c.name "
+        "ORDER BY p.id DESC";
 
-    if (!category.empty()) {
-        sql << "AND (c.slug = '" << drogon::utils::secureRandomString(0) + category << "' OR c.name ILIKE '%" << category << "%') ";
-    }
-    if (!search.empty()) {
-        sql << "AND (p.name ILIKE '%" << search << "%' OR p.description ILIKE '%" << search << "%') ";
-    }
+    int sellerId = 0;
     if (!sellerParam.empty()) {
         try {
-            int sId = std::stoi(sellerParam);
-            sql << "AND p.seller_id = " << sId << " ";
-        } catch (...) {}
+            sellerId = std::stoi(sellerParam);
+        } catch (...) {
+            sellerId = 0;
+        }
     }
-
-    sql << "GROUP BY p.id, u.name, c.name "
-        << "ORDER BY p.id DESC";
+    std::string catLike = category.empty() ? "" : "%" + category + "%";
+    std::string searchLike = search.empty() ? "" : "%" + search + "%";
 
     dbClient->execSqlAsync(
-        sql.str(),
+        base,
         [callback](const drogon::orm::Result& result) {
             Json::Value res;
             res["success"] = true;
@@ -69,13 +71,15 @@ void ProductController::getAllProducts(const drogon::HttpRequestPtr& req,
             callback(resp);
         },
         [callback](const drogon::orm::DrogonDbException& e) {
+            LOG_ERROR << "getAllProducts db error: " << e.base().what();
             Json::Value err;
             err["success"] = false;
-            err["error"] = std::string("Database query error: ") + e.base().what();
+            err["error"] = "Unable to fetch products. Please try again.";
             auto resp = drogon::HttpResponse::newHttpJsonResponse(err);
             resp->setStatusCode(drogon::k500InternalServerError);
             callback(resp);
-        }
+        },
+        category, search, sellerId, catLike, searchLike
     );
 }
 
@@ -156,7 +160,8 @@ void ProductController::getProductById(const drogon::HttpRequestPtr&,
         [callback](const drogon::orm::DrogonDbException& e) {
             Json::Value err;
             err["success"] = false;
-            err["error"] = std::string("Database error: ") + e.base().what();
+            LOG_ERROR << "db error: " << e.base().what();
+            err["error"] = "Internal server error. Please try again.";
             auto resp = drogon::HttpResponse::newHttpJsonResponse(err);
             resp->setStatusCode(drogon::k500InternalServerError);
             callback(resp);
@@ -215,7 +220,8 @@ void ProductController::addProduct(const drogon::HttpRequestPtr& req,
         [callback](const drogon::orm::DrogonDbException& e) {
             Json::Value err;
             err["success"] = false;
-            err["error"] = std::string("Failed to add product: ") + e.base().what();
+            LOG_ERROR << "db error: " << e.base().what();
+            err["error"] = "Internal server error. Please try again.";
             auto resp = drogon::HttpResponse::newHttpJsonResponse(err);
             resp->setStatusCode(drogon::k500InternalServerError);
             callback(resp);
@@ -256,7 +262,7 @@ void ProductController::updateProduct(const drogon::HttpRequestPtr& req,
             }
 
             int currentSellerId = result[0]["seller_id"].as<int>();
-            if (role != "admin" && currentSellerId != sellerId) {
+            if (role != "ADMIN" && currentSellerId != sellerId) {
                 Json::Value err;
                 err["success"] = false;
                 err["error"] = "Permission denied: You can only edit your own products.";
@@ -297,7 +303,8 @@ void ProductController::updateProduct(const drogon::HttpRequestPtr& req,
                 [callback](const drogon::orm::DrogonDbException& e) {
                     Json::Value err;
                     err["success"] = false;
-                    err["error"] = std::string("Update failed: ") + e.base().what();
+                    LOG_ERROR << "db error: " << e.base().what();
+                    err["error"] = "Internal server error. Please try again.";
                     auto resp = drogon::HttpResponse::newHttpJsonResponse(err);
                     resp->setStatusCode(drogon::k500InternalServerError);
                     callback(resp);
@@ -308,7 +315,8 @@ void ProductController::updateProduct(const drogon::HttpRequestPtr& req,
         [callback](const drogon::orm::DrogonDbException& e) {
             Json::Value err;
             err["success"] = false;
-            err["error"] = std::string("Database error: ") + e.base().what();
+            LOG_ERROR << "db error: " << e.base().what();
+            err["error"] = "Internal server error. Please try again.";
             auto resp = drogon::HttpResponse::newHttpJsonResponse(err);
             resp->setStatusCode(drogon::k500InternalServerError);
             callback(resp);
@@ -338,7 +346,7 @@ void ProductController::deleteProduct(const drogon::HttpRequestPtr& req,
             }
 
             int sellerId = result[0]["seller_id"].as<int>();
-            if (role != "admin" && (role != "seller" || sellerId != userId)) {
+            if (role != "ADMIN" && (role != "SELLER" || sellerId != userId)) {
                 Json::Value err;
                 err["success"] = false;
                 err["error"] = "Permission denied. Only the product seller or an administrator can delete this listing.";
@@ -361,7 +369,8 @@ void ProductController::deleteProduct(const drogon::HttpRequestPtr& req,
                 [callback](const drogon::orm::DrogonDbException& e) {
                     Json::Value err;
                     err["success"] = false;
-                    err["error"] = std::string("Failed to delete product: ") + e.base().what();
+                    LOG_ERROR << "db error: " << e.base().what();
+                    err["error"] = "Internal server error. Please try again.";
                     auto resp = drogon::HttpResponse::newHttpJsonResponse(err);
                     resp->setStatusCode(drogon::k500InternalServerError);
                     callback(resp);
@@ -372,7 +381,8 @@ void ProductController::deleteProduct(const drogon::HttpRequestPtr& req,
         [callback](const drogon::orm::DrogonDbException& e) {
             Json::Value err;
             err["success"] = false;
-            err["error"] = std::string("Database error: ") + e.base().what();
+            LOG_ERROR << "db error: " << e.base().what();
+            err["error"] = "Internal server error. Please try again.";
             auto resp = drogon::HttpResponse::newHttpJsonResponse(err);
             resp->setStatusCode(drogon::k500InternalServerError);
             callback(resp);
@@ -406,7 +416,8 @@ void ProductController::getCategories(const drogon::HttpRequestPtr&,
         [callback](const drogon::orm::DrogonDbException& e) {
             Json::Value err;
             err["success"] = false;
-            err["error"] = std::string("Database error: ") + e.base().what();
+            LOG_ERROR << "db error: " << e.base().what();
+            err["error"] = "Internal server error. Please try again.";
             auto resp = drogon::HttpResponse::newHttpJsonResponse(err);
             resp->setStatusCode(drogon::k500InternalServerError);
             callback(resp);

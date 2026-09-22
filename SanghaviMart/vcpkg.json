@@ -1,0 +1,21 @@
+{
+  "name": "sanghavimart",
+  "version": "1.0.0",
+  "description": "SanghaviMart C++20 Drogon PostgreSQL e-commerce platform",
+  "homepage": "https://github.com/sanghavimart/sanghavimart",
+  "license": "MIT",
+  "dependencies": [
+    "drogon",
+    "libpqxx",
+    "libsodium",
+    "argon2",
+    "spdlog",
+    "nlohmann-json",
+    "gtest",
+    "curl",
+    "jsoncpp",
+    "openssl"
+  ],
+  "builtin-baseline": "2025-07-11",
+  "overrides": []
+}

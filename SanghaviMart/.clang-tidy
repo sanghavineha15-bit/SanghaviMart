@@ -1,0 +1,6 @@
+Checks: 'clang-analyzer-*,bugprone-*,cert-*,concurrency-*,cppcoreguidelines-avoid-*,cppcoreguidelines-own-*,misc-*,modernize-use-*,performance-*,readability-braces-*,hicpp-exception-baseclass'
+WarningsAsErrors: false
+HeaderFilterRegex: 'src/.*'
+CheckOptions:
+  - key: readability-braces-around-statements.ShortStatementLines
+    value: 0

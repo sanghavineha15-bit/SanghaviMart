@@ -1,4 +1,5 @@
 #include "OrderController.h"
+#include <cctype>
 #include <chrono>
 #include <random>
 #include <iomanip>
@@ -90,7 +91,7 @@ void OrderController::createOrder(const drogon::HttpRequestPtr& req,
             // 2. Insert into orders table
             dbClient->execSqlAsync(
                 "INSERT INTO orders (order_number, buyer_id, total_amount, status, shipping_name, shipping_phone, shipping_address, shipping_city, shipping_postal_code, payment_method) "
-                "VALUES ($1, $2, $3, 'pending', $4, $5, $6, $7, $8, $9) RETURNING id, order_number, total_amount, status, created_at",
+                "VALUES ($1, $2, $3, 'PENDING', $4, $5, $6, $7, $8, $9) RETURNING id, order_number, total_amount, status, created_at",
                 [dbClient, cartRows, buyerId, callback](const drogon::orm::Result& orderRes) {
                     int orderId = orderRes[0]["id"].as<int>();
                     std::string orderNum = orderRes[0]["order_number"].as<std::string>();
@@ -148,7 +149,8 @@ void OrderController::createOrder(const drogon::HttpRequestPtr& req,
                 [callback](const drogon::orm::DrogonDbException& e) {
                     Json::Value err;
                     err["success"] = false;
-                    err["error"] = std::string("Failed to create order: ") + e.base().what();
+                    LOG_ERROR << "db error: " << e.base().what();
+                    err["error"] = "Internal server error. Please try again.";
                     auto resp = drogon::HttpResponse::newHttpJsonResponse(err);
                     resp->setStatusCode(drogon::k500InternalServerError);
                     callback(resp);
@@ -159,7 +161,8 @@ void OrderController::createOrder(const drogon::HttpRequestPtr& req,
         [callback](const drogon::orm::DrogonDbException& e) {
             Json::Value err;
             err["success"] = false;
-            err["error"] = std::string("Cart query error: ") + e.base().what();
+            LOG_ERROR << "db error: " << e.base().what();
+            err["error"] = "Internal server error. Please try again.";
             auto resp = drogon::HttpResponse::newHttpJsonResponse(err);
             resp->setStatusCode(drogon::k500InternalServerError);
             callback(resp);
@@ -175,26 +178,29 @@ void OrderController::getOrders(const drogon::HttpRequestPtr& req,
     auto dbClient = drogon::app().getDbClient();
 
     std::string sql;
-    if (role == "buyer") {
-        // Buyer views all orders they placed
+    bool needsParam = false;
+    if (role == "BUYER") {
+        // Buyer views all orders they placed (parameterized)
         sql = "SELECT o.id, o.order_number, o.buyer_id, u.name AS buyer_name, o.total_amount, o.status, "
               "o.shipping_name, o.shipping_city, o.payment_method, o.created_at, "
               "COUNT(oi.id) AS item_count "
               "FROM orders o "
               "JOIN users u ON o.buyer_id = u.id "
               "LEFT JOIN order_items oi ON o.id = oi.order_id "
-              "WHERE o.buyer_id = " + std::to_string(userId) + " "
+              "WHERE o.buyer_id = $1 "
               "GROUP BY o.id, u.name ORDER BY o.id DESC";
-    } else if (role == "seller") {
-        // Seller views orders containing products they sold
+        needsParam = true;
+    } else if (role == "SELLER") {
+        // Seller views orders containing products they sold (parameterized)
         sql = "SELECT DISTINCT o.id, o.order_number, o.buyer_id, u.name AS buyer_name, "
               "SUM(oi.subtotal) AS seller_subtotal, o.status, o.shipping_name, o.shipping_city, "
               "o.created_at, COUNT(oi.id) AS item_count "
               "FROM orders o "
               "JOIN users u ON o.buyer_id = u.id "
               "JOIN order_items oi ON o.id = oi.order_id "
-              "WHERE oi.seller_id = " + std::to_string(userId) + " "
+              "WHERE oi.seller_id = $1 "
               "GROUP BY o.id, u.name ORDER BY o.id DESC";
+        needsParam = true;
     } else {
         // Admin views all orders
         sql = "SELECT o.id, o.order_number, o.buyer_id, u.name AS buyer_name, o.total_amount, o.status, "
@@ -206,9 +212,7 @@ void OrderController::getOrders(const drogon::HttpRequestPtr& req,
               "GROUP BY o.id, u.name ORDER BY o.id DESC";
     }
 
-    dbClient->execSqlAsync(
-        sql,
-        [callback, role](const drogon::orm::Result& result) {
+    auto okCb = [callback, role](const drogon::orm::Result& result) {
             Json::Value res;
             res["success"] = true;
             res["count"] = static_cast<int>(result.size());
@@ -220,7 +224,7 @@ void OrderController::getOrders(const drogon::HttpRequestPtr& req,
                 ord["order_number"] = row["order_number"].as<std::string>();
                 ord["buyer_id"] = row["buyer_id"].as<int>();
                 ord["buyer_name"] = row["buyer_name"].as<std::string>();
-                if (role == "seller") {
+                if (role == "SELLER") {
                     ord["total_amount"] = row["seller_subtotal"].as<double>();
                 } else {
                     ord["total_amount"] = row["total_amount"].as<double>();
@@ -236,16 +240,21 @@ void OrderController::getOrders(const drogon::HttpRequestPtr& req,
             res["orders"] = orders;
             auto resp = drogon::HttpResponse::newHttpJsonResponse(res);
             callback(resp);
-        },
-        [callback](const drogon::orm::DrogonDbException& e) {
+        };
+        auto errCb = [callback](const drogon::orm::DrogonDbException& e) {
+            LOG_ERROR << "getOrders db error: " << e.base().what();
             Json::Value err;
             err["success"] = false;
-            err["error"] = std::string("Database error: ") + e.base().what();
+            err["error"] = "Unable to fetch orders.";
             auto resp = drogon::HttpResponse::newHttpJsonResponse(err);
             resp->setStatusCode(drogon::k500InternalServerError);
             callback(resp);
+        };
+        if (needsParam) {
+            dbClient->execSqlAsync(sql, okCb, errCb, userId);
+        } else {
+            dbClient->execSqlAsync(sql, okCb, errCb);
         }
-    );
 }
 
 void OrderController::getOrderById(const drogon::HttpRequestPtr& req,
@@ -274,7 +283,7 @@ void OrderController::getOrderById(const drogon::HttpRequestPtr& req,
             }
 
             int buyerId = result[0]["buyer_id"].as<int>();
-            if (role == "buyer" && buyerId != userId) {
+            if (role == "BUYER" && buyerId != userId) {
                 Json::Value err;
                 err["success"] = false;
                 err["error"] = "Permission denied: You can only view your own orders.";
@@ -302,20 +311,17 @@ void OrderController::getOrderById(const drogon::HttpRequestPtr& req,
             ord["payment_method"] = result[0]["payment_method"].as<std::string>();
             ord["created_at"] = result[0]["created_at"].as<std::string>();
 
-            // Query items
-            std::string itemSql = "SELECT oi.id, oi.product_id, p.name AS product_name, p.image_url, "
-                                  "oi.seller_id, s.name AS seller_name, oi.quantity, oi.unit_price, oi.subtotal "
-                                  "FROM order_items oi "
-                                  "JOIN products p ON oi.product_id = p.id "
-                                  "JOIN users s ON oi.seller_id = s.id "
-                                  "WHERE oi.order_id = $1";
-            if (role == "seller") {
-                itemSql += " AND oi.seller_id = " + std::to_string(userId);
-            }
+            // Query items (parameterized; seller scoping via $2, never concatenated)
+            const std::string itemSqlAll =
+                "SELECT oi.id, oi.product_id, p.name AS product_name, p.image_url, "
+                "oi.seller_id, s.name AS seller_name, oi.quantity, oi.unit_price, oi.subtotal "
+                "FROM order_items oi "
+                "JOIN products p ON oi.product_id = p.id "
+                "JOIN users s ON oi.seller_id = s.id "
+                "WHERE oi.order_id = $1";
+            const std::string itemSqlSeller = itemSqlAll + " AND oi.seller_id = $2";
 
-            dbClient->execSqlAsync(
-                itemSql,
-                [callback, res, ord](const drogon::orm::Result& itemRows) mutable {
+            auto itemsOk = [callback, res, ord](const drogon::orm::Result& itemRows) mutable {
                     Json::Value items(Json::arrayValue);
                     for (const auto& row : itemRows) {
                         Json::Value it;
@@ -335,22 +341,27 @@ void OrderController::getOrderById(const drogon::HttpRequestPtr& req,
 
                     auto resp = drogon::HttpResponse::newHttpJsonResponse(res);
                     callback(resp);
-                },
-                [callback](const drogon::orm::DrogonDbException& e) {
+                };
+                auto itemsErr = [callback](const drogon::orm::DrogonDbException& e) {
+                    LOG_ERROR << "getOrderById items db error: " << e.base().what();
                     Json::Value err;
                     err["success"] = false;
-                    err["error"] = std::string("Database error: ") + e.base().what();
+                    err["error"] = "Unable to fetch order items.";
                     auto resp = drogon::HttpResponse::newHttpJsonResponse(err);
                     resp->setStatusCode(drogon::k500InternalServerError);
                     callback(resp);
-                },
-                id
-            );
+                };
+                if (role == "SELLER") {
+                    dbClient->execSqlAsync(itemSqlSeller, itemsOk, itemsErr, id, userId);
+                } else {
+                    dbClient->execSqlAsync(itemSqlAll, itemsOk, itemsErr, id);
+                }
         },
         [callback](const drogon::orm::DrogonDbException& e) {
+            LOG_ERROR << "getOrderById db error: " << e.base().what();
             Json::Value err;
             err["success"] = false;
-            err["error"] = std::string("Database error: ") + e.base().what();
+            err["error"] = "Unable to fetch order.";
             auto resp = drogon::HttpResponse::newHttpJsonResponse(err);
             resp->setStatusCode(drogon::k500InternalServerError);
             callback(resp);
@@ -363,7 +374,7 @@ void OrderController::updateOrderStatus(const drogon::HttpRequestPtr& req,
                                        std::function<void(const drogon::HttpResponsePtr&)>&& callback,
                                        int id) {
     std::string role = req->attributes()->get<std::string>("user_role");
-    if (role != "seller" && role != "admin") {
+    if (role != "SELLER" && role != "ADMIN") {
         Json::Value err;
         err["success"] = false;
         err["error"] = "Only sellers and administrators can update order status.";
@@ -385,10 +396,11 @@ void OrderController::updateOrderStatus(const drogon::HttpRequestPtr& req,
     }
 
     std::string newStatus = (*json).get("status", "").asString();
-    if (newStatus != "pending" && newStatus != "processing" && newStatus != "shipped" && newStatus != "delivered" && newStatus != "cancelled") {
+    for (auto& c : newStatus) c = (char)toupper(c);  // accept lowercase clients
+    if (newStatus != "PENDING" && newStatus != "CONFIRMED" && newStatus != "SHIPPED" && newStatus != "DELIVERED" && newStatus != "CANCELLED") {
         Json::Value err;
         err["success"] = false;
-        err["error"] = "Status must be: pending, processing, shipped, delivered, or cancelled.";
+        err["error"] = "Status must be: PENDING, CONFIRMED, SHIPPED, DELIVERED, or CANCELLED.";
         auto resp = drogon::HttpResponse::newHttpJsonResponse(err);
         resp->setStatusCode(drogon::k400BadRequest);
         callback(resp);
@@ -422,7 +434,8 @@ void OrderController::updateOrderStatus(const drogon::HttpRequestPtr& req,
         [callback](const drogon::orm::DrogonDbException& e) {
             Json::Value err;
             err["success"] = false;
-            err["error"] = std::string("Database error: ") + e.base().what();
+            LOG_ERROR << "db error: " << e.base().what();
+            err["error"] = "Internal server error. Please try again.";
             auto resp = drogon::HttpResponse::newHttpJsonResponse(err);
             resp->setStatusCode(drogon::k500InternalServerError);
             callback(resp);

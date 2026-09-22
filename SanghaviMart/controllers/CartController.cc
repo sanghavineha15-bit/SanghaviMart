@@ -57,7 +57,8 @@ void CartController::getCart(const drogon::HttpRequestPtr& req,
                 [callback](const drogon::orm::DrogonDbException& e) {
                     Json::Value err;
                     err["success"] = false;
-                    err["error"] = std::string("Database error: ") + e.base().what();
+                    LOG_ERROR << "db error: " << e.base().what();
+                    err["error"] = "Internal server error. Please try again.";
                     auto resp = drogon::HttpResponse::newHttpJsonResponse(err);
                     resp->setStatusCode(drogon::k500InternalServerError);
                     callback(resp);
@@ -68,7 +69,8 @@ void CartController::getCart(const drogon::HttpRequestPtr& req,
         [callback](const drogon::orm::DrogonDbException& e) {
             Json::Value err;
             err["success"] = false;
-            err["error"] = std::string("Database error: ") + e.base().what();
+            LOG_ERROR << "db error: " << e.base().what();
+            err["error"] = "Internal server error. Please try again.";
             auto resp = drogon::HttpResponse::newHttpJsonResponse(err);
             resp->setStatusCode(drogon::k500InternalServerError);
             callback(resp);
@@ -172,7 +174,8 @@ void CartController::addToCart(const drogon::HttpRequestPtr& req,
                                     [callback](const drogon::orm::DrogonDbException& e) {
                                         Json::Value err;
                                         err["success"] = false;
-                                        err["error"] = std::string("Database error: ") + e.base().what();
+                                        LOG_ERROR << "db error: " << e.base().what();
+                                        err["error"] = "Internal server error. Please try again.";
                                         auto resp = drogon::HttpResponse::newHttpJsonResponse(err);
                                         resp->setStatusCode(drogon::k500InternalServerError);
                                         callback(resp);
@@ -192,7 +195,8 @@ void CartController::addToCart(const drogon::HttpRequestPtr& req,
                                     [callback](const drogon::orm::DrogonDbException& e) {
                                         Json::Value err;
                                         err["success"] = false;
-                                        err["error"] = std::string("Database error: ") + e.base().what();
+                                        LOG_ERROR << "db error: " << e.base().what();
+                                        err["error"] = "Internal server error. Please try again.";
                                         auto resp = drogon::HttpResponse::newHttpJsonResponse(err);
                                         resp->setStatusCode(drogon::k500InternalServerError);
                                         callback(resp);
@@ -204,7 +208,8 @@ void CartController::addToCart(const drogon::HttpRequestPtr& req,
                         [callback](const drogon::orm::DrogonDbException& e) {
                             Json::Value err;
                             err["success"] = false;
-                            err["error"] = std::string("Database error: ") + e.base().what();
+                            LOG_ERROR << "db error: " << e.base().what();
+                            err["error"] = "Internal server error. Please try again.";
                             auto resp = drogon::HttpResponse::newHttpJsonResponse(err);
                             resp->setStatusCode(drogon::k500InternalServerError);
                             callback(resp);
@@ -215,7 +220,8 @@ void CartController::addToCart(const drogon::HttpRequestPtr& req,
                 [callback](const drogon::orm::DrogonDbException& e) {
                     Json::Value err;
                     err["success"] = false;
-                    err["error"] = std::string("Database error: ") + e.base().what();
+                    LOG_ERROR << "db error: " << e.base().what();
+                    err["error"] = "Internal server error. Please try again.";
                     auto resp = drogon::HttpResponse::newHttpJsonResponse(err);
                     resp->setStatusCode(drogon::k500InternalServerError);
                     callback(resp);
@@ -226,7 +232,8 @@ void CartController::addToCart(const drogon::HttpRequestPtr& req,
         [callback](const drogon::orm::DrogonDbException& e) {
             Json::Value err;
             err["success"] = false;
-            err["error"] = std::string("Database query error: ") + e.base().what();
+            LOG_ERROR << "db error: " << e.base().what();
+            err["error"] = "Internal server error. Please try again.";
             auto resp = drogon::HttpResponse::newHttpJsonResponse(err);
             resp->setStatusCode(drogon::k500InternalServerError);
             callback(resp);
@@ -300,7 +307,8 @@ void CartController::updateCartItem(const drogon::HttpRequestPtr& req,
                 [callback](const drogon::orm::DrogonDbException& e) {
                     Json::Value err;
                     err["success"] = false;
-                    err["error"] = std::string("Failed to update cart: ") + e.base().what();
+                    LOG_ERROR << "db error: " << e.base().what();
+                    err["error"] = "Internal server error. Please try again.";
                     auto resp = drogon::HttpResponse::newHttpJsonResponse(err);
                     resp->setStatusCode(drogon::k500InternalServerError);
                     callback(resp);
@@ -311,7 +319,8 @@ void CartController::updateCartItem(const drogon::HttpRequestPtr& req,
         [callback](const drogon::orm::DrogonDbException& e) {
             Json::Value err;
             err["success"] = false;
-            err["error"] = std::string("Database error: ") + e.base().what();
+            LOG_ERROR << "db error: " << e.base().what();
+            err["error"] = "Internal server error. Please try again.";
             auto resp = drogon::HttpResponse::newHttpJsonResponse(err);
             resp->setStatusCode(drogon::k500InternalServerError);
             callback(resp);
@@ -348,7 +357,8 @@ void CartController::removeCartItem(const drogon::HttpRequestPtr& req,
         [callback](const drogon::orm::DrogonDbException& e) {
             Json::Value err;
             err["success"] = false;
-            err["error"] = std::string("Database delete error: ") + e.base().what();
+            LOG_ERROR << "db error: " << e.base().what();
+            err["error"] = "Internal server error. Please try again.";
             auto resp = drogon::HttpResponse::newHttpJsonResponse(err);
             resp->setStatusCode(drogon::k500InternalServerError);
             callback(resp);
@@ -374,7 +384,8 @@ void CartController::clearCart(const drogon::HttpRequestPtr& req,
         [callback](const drogon::orm::DrogonDbException& e) {
             Json::Value err;
             err["success"] = false;
-            err["error"] = std::string("Database error: ") + e.base().what();
+            LOG_ERROR << "db error: " << e.base().what();
+            err["error"] = "Internal server error. Please try again.";
             auto resp = drogon::HttpResponse::newHttpJsonResponse(err);
             resp->setStatusCode(drogon::k500InternalServerError);
             callback(resp);

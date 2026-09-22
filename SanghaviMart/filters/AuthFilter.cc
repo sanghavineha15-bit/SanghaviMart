@@ -55,7 +55,7 @@ void BuyerFilter::doFilter(const drogon::HttpRequestPtr& req,
         fcb(errResp);
         return;
     }
-    if (payload.role != "buyer" && payload.role != "admin") {
+    if (payload.role != "BUYER" && payload.role != "ADMIN") {
         Json::Value err;
         err["success"] = false;
         err["error"] = "Access restricted to Buyers only.";
@@ -76,7 +76,7 @@ void SellerFilter::doFilter(const drogon::HttpRequestPtr& req,
         fcb(errResp);
         return;
     }
-    if (payload.role != "seller" && payload.role != "admin") {
+    if (payload.role != "SELLER" && payload.role != "ADMIN") {
         Json::Value err;
         err["success"] = false;
         err["error"] = "Access restricted to registered Sellers only.";
@@ -97,7 +97,7 @@ void AdminFilter::doFilter(const drogon::HttpRequestPtr& req,
         fcb(errResp);
         return;
     }
-    if (payload.role != "admin") {
+    if (payload.role != "ADMIN") {
         Json::Value err;
         err["success"] = false;
         err["error"] = "Administrative privileges required.";

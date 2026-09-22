@@ -228,3 +228,34 @@ git push -u origin main
   The checkout routine uses PostgreSQL transactions and conditional atomic updates (`stock_quantity = stock_quantity - requested_quantity WHERE stock_quantity >= requested_quantity`) to eliminate overselling during simultaneous checkouts.
 - **Role Isolation**:
   Sellers can only modify their own inventory; admins have supervisory oversight; buyers can only review items they have purchased.
+
+---
+
+## 9. API v1 (spec-canonical, sessions + envelope)
+
+Base: `/api/v1`. Success: `{"success":true,"data":{...},"error":null}`.
+Error: `{"success":false,"data":null,"error":{"code":"...","message":"..."}}`
+with 200/201/400/401/403/404/409/500. Auth is server-side sessions
+(`POST /api/v1/auth/register|login`, `POST /api/v1/auth/logout`,
+`GET /api/v1/auth/me`); roles `BUYER|SELLER|ADMIN` (admin seeded, no signup).
+Money is integer `price_cents`. Key routes:
+
+| Method | Endpoint | Role |
+|---|---|---|
+| `GET` | `/api/v1/health` (runs `SELECT 1`) | public |
+| `GET` | `/api/v1/products?q=&category=` | public |
+| `POST/PUT/DELETE` | `/api/v1/products[/{id}]` | SELLER/ADMIN (own listings) |
+| `GET/POST/PUT/DELETE` | `/api/v1/cart[/{productId}]` | BUYER |
+| `POST` | `/api/v1/orders/checkout` (mock payment, txn) | BUYER |
+| `GET` | `/api/v1/orders[/{id}]` (role-scoped) | auth |
+| `PUT` | `/api/v1/orders/{id}/status` (`PENDING→CONFIRMED→SHIPPED→DELIVERED`, `CANCELLED`) | SELLER/ADMIN |
+| `POST` | `/api/v1/reviews` (verified purchase, 1–5, one/user/product) | BUYER |
+| `GET` | `/api/v1/admin/users\|orders\|stats`, `DELETE /api/v1/admin/products/{id}` | ADMIN (403 otherwise) |
+| `POST` | `/api/v1/chat` (10/min/session, cached, Gemini or mock fallback) | public |
+
+Legacy `/api/*` (JWT) is retained for existing vanilla pages. Migrations
+`db/migrations/V1–V5` run transactionally via `MigrationService`; V5 bridges
+legacy columns to canonical cents/UPPER vocabularies with sync triggers.
+Build: `cmake --preset linux-release && cmake --build build/release`
+(requires vcpkg manifest + PostgreSQL 15+). Tests: `ctest --test-dir
+build/debug` (unit always; PG/concurrency need `POSTGRES_TEST_DB`).

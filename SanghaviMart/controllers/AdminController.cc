@@ -1,4 +1,5 @@
 #include "AdminController.h"
+#include <cctype>
 
 namespace sanghavimart::controllers {
 
@@ -6,16 +7,9 @@ void AdminController::getAllUsers(const drogon::HttpRequestPtr& req,
                                  std::function<void(const drogon::HttpResponsePtr&)>&& callback) {
     auto dbClient = drogon::app().getDbClient();
     std::string roleFilter = req->getParameter("role");
+    for (auto& c : roleFilter) c = (char)toupper(c);  // accept ?role=buyer
 
-    std::string sql = "SELECT id, name, email, role, phone, address, created_at FROM users ";
-    if (!roleFilter.empty() && (roleFilter == "buyer" || roleFilter == "seller" || roleFilter == "admin")) {
-        sql += "WHERE role = '" + roleFilter + "' ";
-    }
-    sql += "ORDER BY id ASC";
-
-    dbClient->execSqlAsync(
-        sql,
-        [callback](const drogon::orm::Result& result) {
+    auto okCb = [callback](const drogon::orm::Result& result) {
             Json::Value res;
             res["success"] = true;
             res["count"] = static_cast<int>(result.size());
@@ -36,16 +30,27 @@ void AdminController::getAllUsers(const drogon::HttpRequestPtr& req,
 
             auto resp = drogon::HttpResponse::newHttpJsonResponse(res);
             callback(resp);
-        },
-        [callback](const drogon::orm::DrogonDbException& e) {
+        };
+    auto errCb = [callback](const drogon::orm::DrogonDbException& e) {
+            LOG_ERROR << "getAllUsers db error: " << e.base().what();
             Json::Value err;
             err["success"] = false;
-            err["error"] = std::string("Database error: ") + e.base().what();
+            err["error"] = "Unable to fetch users.";
             auto resp = drogon::HttpResponse::newHttpJsonResponse(err);
             resp->setStatusCode(drogon::k500InternalServerError);
             callback(resp);
-        }
-    );
+        };
+    if (roleFilter == "BUYER" || roleFilter == "SELLER" || roleFilter == "ADMIN") {
+        dbClient->execSqlAsync(
+            "SELECT id, name, email, role, phone, address, created_at FROM users "
+            "WHERE role = $1 ORDER BY id ASC",
+            okCb, errCb, roleFilter);
+    } else {
+        dbClient->execSqlAsync(
+            "SELECT id, name, email, role, phone, address, created_at FROM users "
+            "ORDER BY id ASC",
+            okCb, errCb);
+    }
 }
 
 void AdminController::getAllProducts(const drogon::HttpRequestPtr&,
@@ -89,7 +94,8 @@ void AdminController::getAllProducts(const drogon::HttpRequestPtr&,
         [callback](const drogon::orm::DrogonDbException& e) {
             Json::Value err;
             err["success"] = false;
-            err["error"] = std::string("Database error: ") + e.base().what();
+            LOG_ERROR << "db error: " << e.base().what();
+            err["error"] = "Internal server error. Please try again.";
             auto resp = drogon::HttpResponse::newHttpJsonResponse(err);
             resp->setStatusCode(drogon::k500InternalServerError);
             callback(resp);
@@ -138,7 +144,8 @@ void AdminController::getAllOrders(const drogon::HttpRequestPtr&,
         [callback](const drogon::orm::DrogonDbException& e) {
             Json::Value err;
             err["success"] = false;
-            err["error"] = std::string("Database error: ") + e.base().what();
+            LOG_ERROR << "db error: " << e.base().what();
+            err["error"] = "Internal server error. Please try again.";
             auto resp = drogon::HttpResponse::newHttpJsonResponse(err);
             resp->setStatusCode(drogon::k500InternalServerError);
             callback(resp);
@@ -172,7 +179,8 @@ void AdminController::deleteProduct(const drogon::HttpRequestPtr&,
         [callback](const drogon::orm::DrogonDbException& e) {
             Json::Value err;
             err["success"] = false;
-            err["error"] = std::string("Failed to remove product: ") + e.base().what();
+            LOG_ERROR << "db error: " << e.base().what();
+            err["error"] = "Internal server error. Please try again.";
             auto resp = drogon::HttpResponse::newHttpJsonResponse(err);
             resp->setStatusCode(drogon::k500InternalServerError);
             callback(resp);
@@ -187,8 +195,8 @@ void AdminController::getPlatformStats(const drogon::HttpRequestPtr&,
 
     dbClient->execSqlAsync(
         "SELECT "
-        "(SELECT COUNT(*) FROM users WHERE role = 'buyer') AS total_buyers, "
-        "(SELECT COUNT(*) FROM users WHERE role = 'seller') AS total_sellers, "
+        "(SELECT COUNT(*) FROM users WHERE role = 'BUYER') AS total_buyers, "
+        "(SELECT COUNT(*) FROM users WHERE role = 'SELLER') AS total_sellers, "
         "(SELECT COUNT(*) FROM products WHERE is_active = TRUE) AS active_products, "
         "(SELECT COUNT(*) FROM orders) AS total_orders, "
         "(SELECT COALESCE(SUM(total_amount), 0) FROM orders) AS total_revenue",
@@ -208,7 +216,8 @@ void AdminController::getPlatformStats(const drogon::HttpRequestPtr&,
         [callback](const drogon::orm::DrogonDbException& e) {
             Json::Value err;
             err["success"] = false;
-            err["error"] = std::string("Database stats error: ") + e.base().what();
+            LOG_ERROR << "db error: " << e.base().what();
+            err["error"] = "Internal server error. Please try again.";
             auto resp = drogon::HttpResponse::newHttpJsonResponse(err);
             resp->setStatusCode(drogon::k500InternalServerError);
             callback(resp);

@@ -1,4 +1,5 @@
 #include "AuthController.h"
+#include <cctype>
 #include "../utils/PasswordUtil.h"
 #include "../utils/JwtUtil.h"
 #include <regex>
@@ -21,7 +22,8 @@ void AuthController::registerUser(const drogon::HttpRequestPtr& req,
     std::string name = (*json)["name"].asString();
     std::string email = (*json)["email"].asString();
     std::string password = (*json)["password"].asString();
-    std::string role = (*json)["role"].asString(); // "buyer" or "seller"
+    std::string role = (*json)["role"].asString();  // "BUYER" or "SELLER"
+    for (auto& c : role) c = (char)toupper(c);  // accept lowercase clients
     std::string phone = (*json).get("phone", "").asString();
     std::string address = (*json).get("address", "").asString();
 
@@ -36,10 +38,10 @@ void AuthController::registerUser(const drogon::HttpRequestPtr& req,
         return;
     }
 
-    if (role != "buyer" && role != "seller") {
+    if (role != "BUYER" && role != "SELLER") {
         Json::Value err;
         err["success"] = false;
-        err["error"] = "Role must be either 'buyer' or 'seller'. Admin accounts cannot be registered publicly.";
+        err["error"] = "Role must be either 'BUYER' or 'SELLER'. Admin accounts cannot be registered publicly.";
         auto resp = drogon::HttpResponse::newHttpJsonResponse(err);
         resp->setStatusCode(drogon::k400BadRequest);
         callback(resp);
@@ -105,7 +107,7 @@ void AuthController::registerUser(const drogon::HttpRequestPtr& req,
                     std::string userRole = insertResult[0]["role"].as<std::string>();
 
                     // If buyer, create their initial cart
-                    if (userRole == "buyer") {
+                    if (userRole == "BUYER") {
                         dbClient->execSqlAsync(
                             "INSERT INTO cart (buyer_id) VALUES ($1) ON CONFLICT (buyer_id) DO NOTHING",
                             [](const drogon::orm::Result&) {},
@@ -131,7 +133,8 @@ void AuthController::registerUser(const drogon::HttpRequestPtr& req,
                 [callback](const drogon::orm::DrogonDbException& e) {
                     Json::Value err;
                     err["success"] = false;
-                    err["error"] = std::string("Database error: ") + e.base().what();
+                    LOG_ERROR << "db error: " << e.base().what();
+                    err["error"] = "Internal server error. Please try again.";
                     auto resp = drogon::HttpResponse::newHttpJsonResponse(err);
                     resp->setStatusCode(drogon::k500InternalServerError);
                     callback(resp);
@@ -142,7 +145,8 @@ void AuthController::registerUser(const drogon::HttpRequestPtr& req,
         [callback](const drogon::orm::DrogonDbException& e) {
             Json::Value err;
             err["success"] = false;
-            err["error"] = std::string("Database query error: ") + e.base().what();
+            LOG_ERROR << "db error: " << e.base().what();
+            err["error"] = "Internal server error. Please try again.";
             auto resp = drogon::HttpResponse::newHttpJsonResponse(err);
             resp->setStatusCode(drogon::k500InternalServerError);
             callback(resp);
@@ -227,7 +231,8 @@ void AuthController::loginUser(const drogon::HttpRequestPtr& req,
         [callback](const drogon::orm::DrogonDbException& e) {
             Json::Value err;
             err["success"] = false;
-            err["error"] = std::string("Database error during authentication: ") + e.base().what();
+            LOG_ERROR << "db error: " << e.base().what();
+            err["error"] = "Internal server error. Please try again.";
             auto resp = drogon::HttpResponse::newHttpJsonResponse(err);
             resp->setStatusCode(drogon::k500InternalServerError);
             callback(resp);
@@ -279,7 +284,8 @@ void AuthController::getCurrentUser(const drogon::HttpRequestPtr& req,
         [callback](const drogon::orm::DrogonDbException& e) {
             Json::Value err;
             err["success"] = false;
-            err["error"] = std::string("Database error: ") + e.base().what();
+            LOG_ERROR << "db error: " << e.base().what();
+            err["error"] = "Internal server error. Please try again.";
             auto resp = drogon::HttpResponse::newHttpJsonResponse(err);
             resp->setStatusCode(drogon::k500InternalServerError);
             callback(resp);

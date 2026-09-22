@@ -80,20 +80,21 @@
         const prodData = await api.getProducts();
         const container = document.getElementById('featuredProducts');
         if (prodData.products && prodData.products.length > 0) {
+          // XSS: every interpolated field is user-controlled (seller input).
           container.innerHTML = prodData.products.slice(0, 8).map(p => `
             <div class="product-card">
-              <img src="${p.image_url}" alt="${p.name}" class="product-image" loading="lazy" />
+              <img src="${escapeHtml(p.image_url)}" alt="${escapeHtml(p.name)}" class="product-image" loading="lazy" />
               <div class="product-body">
-                <div class="product-category">${p.category_name}</div>
-                <h3 class="product-title">${p.name}</h3>
-                <p class="product-description">${p.description}</p>
+                <div class="product-category">${escapeHtml(p.category_name)}</div>
+                <h3 class="product-title">${escapeHtml(p.name)}</h3>
+                <p class="product-description">${escapeHtml(p.description)}</p>
                 <div class="product-meta">
-                  <span class="product-price">$${p.price.toFixed(2)}</span>
+                  <span class="product-price">$${Number(p.price).toFixed(2)}</span>
                   <span class="stock-badge ${p.stock_quantity > 5 ? 'stock-in' : (p.stock_quantity > 0 ? 'stock-low' : 'stock-out')}">
-                    ${p.stock_quantity > 0 ? p.stock_quantity + ' in stock' : 'Out of stock'}
+                    ${p.stock_quantity > 0 ? Number(p.stock_quantity) + ' in stock' : 'Out of stock'}
                   </span>
                 </div>
-                <button class="btn btn-primary" style="margin-top: 1rem; width: 100%;" onclick="quickAddToCart(${p.id})">
+                <button class="btn btn-primary" style="margin-top: 1rem; width: 100%;" onclick="quickAddToCart(${Number(p.id)})">
                   Add to Cart
                 </button>
               </div>

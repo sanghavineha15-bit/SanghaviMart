@@ -75,7 +75,8 @@ void ReviewController::addReview(const drogon::HttpRequestPtr& req,
                 [callback](const drogon::orm::DrogonDbException& e) {
                     Json::Value err;
                     err["success"] = false;
-                    err["error"] = std::string("Database error: ") + e.base().what();
+                    LOG_ERROR << "db error: " << e.base().what();
+                    err["error"] = "Internal server error. Please try again.";
                     auto resp = drogon::HttpResponse::newHttpJsonResponse(err);
                     resp->setStatusCode(drogon::k500InternalServerError);
                     callback(resp);
@@ -86,7 +87,8 @@ void ReviewController::addReview(const drogon::HttpRequestPtr& req,
         [callback](const drogon::orm::DrogonDbException& e) {
             Json::Value err;
             err["success"] = false;
-            err["error"] = std::string("Database query error: ") + e.base().what();
+            LOG_ERROR << "db error: " << e.base().what();
+            err["error"] = "Internal server error. Please try again.";
             auto resp = drogon::HttpResponse::newHttpJsonResponse(err);
             resp->setStatusCode(drogon::k500InternalServerError);
             callback(resp);
@@ -133,7 +135,8 @@ void ReviewController::getProductReviews(const drogon::HttpRequestPtr&,
         [callback](const drogon::orm::DrogonDbException& e) {
             Json::Value err;
             err["success"] = false;
-            err["error"] = std::string("Database error: ") + e.base().what();
+            LOG_ERROR << "db error: " << e.base().what();
+            err["error"] = "Internal server error. Please try again.";
             auto resp = drogon::HttpResponse::newHttpJsonResponse(err);
             resp->setStatusCode(drogon::k500InternalServerError);
             callback(resp);

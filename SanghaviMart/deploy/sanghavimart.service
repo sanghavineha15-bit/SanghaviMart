@@ -1,0 +1,15 @@
+[Unit]
+Description=SanghaviMart Drogon E-Commerce
+After=network.target postgresql.service
+Requires=postgresql.service
+
+[Service]
+Type=simple
+User=sanghavimart
+WorkingDirectory=/opt/sanghavimart
+EnvironmentFile=/etc/sanghavimart/env
+ExecStart=/opt/sanghavimart/SanghaviMart
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

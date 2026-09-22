@@ -1,0 +1,47 @@
+name: sanghavimart-ci
+on: [push, pull_request]
+jobs:
+  build-test:
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: sanghavimart_test_db
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build cmake pkg-config libssl-dev \
+            libpq-dev libsodium-dev libargon2-dev libcurl4-openssl-dev \
+            clang-tidy cppcheck
+          git clone https://github.com/microsoft/vcpkg.git
+          ./vcpkg/bootstrap-vcpkg.sh
+      - name: Configure
+        working-directory: SanghaviMart
+        env:
+          VCPKG_ROOT: ${{ github.workspace }}/vcpkg
+        run: cmake --preset linux-debug
+      - name: Build
+        working-directory: SanghaviMart
+        run: cmake --build build/debug
+      - name: Unit tests (PostgreSQL-backed where configured)
+        working-directory: SanghaviMart
+        env:
+          POSTGRES_HOST: 127.0.0.1
+          POSTGRES_DB: sanghavimart_test_db
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        run: ctest --test-dir build/debug --output-on-failure
+      - name: clang-tidy
+        working-directory: SanghaviMart
+        run: cmake --build build/debug --target tidy || true
+      - name: cppcheck
+        working-directory: SanghaviMart
+        run: cmake --build build/debug --target cppcheck || true
