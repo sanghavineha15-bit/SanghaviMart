@@ -1,0 +1,28 @@
+# SanghaviMart full stack: app + PostgreSQL. One command: docker compose up --build
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: sanghavi
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
+      POSTGRES_DB: sanghavimart
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sanghavi"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+    volumes:
+      - ./config.postgres.json:/opt/sanghavimart/config.json:ro
+volumes:
+  pgdata:

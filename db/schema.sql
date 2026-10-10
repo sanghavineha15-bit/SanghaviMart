@@ -4,21 +4,21 @@ CREATE TABLE IF NOT EXISTS users(
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL, email TEXT NOT NULL UNIQUE,
   password_hash TEXT NOT NULL,
-  role TEXT NOT NULL CHECK(role IN ('"'"'BUYER'"'"','"'"'SELLER'"'"','"'"'ADMIN'"'"')),
+  role TEXT NOT NULL CHECK(role IN ('BUYER','SELLER','ADMIN')),
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE TABLE IF NOT EXISTS products(
   id INTEGER PRIMARY KEY AUTOINCREMENT, seller_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  name TEXT NOT NULL, description TEXT NOT NULL DEFAULT '"'"''"'"',
+  name TEXT NOT NULL, description TEXT NOT NULL DEFAULT '',
   price_cents BIGINT NOT NULL CHECK(price_cents > 0),
   stock_qty BIGINT NOT NULL DEFAULT 0 CHECK(stock_qty >= 0),
-  category TEXT NOT NULL DEFAULT '"'"'general'"'"', image_url TEXT NOT NULL DEFAULT '"'"''"'"',
+  category TEXT NOT NULL DEFAULT 'general', image_url TEXT NOT NULL DEFAULT '',
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
 CREATE INDEX IF NOT EXISTS idx_products_seller ON products(seller_id);
 CREATE INDEX IF NOT EXISTS idx_products_category ON products(category);
 CREATE TABLE IF NOT EXISTS orders(
   id INTEGER PRIMARY KEY AUTOINCREMENT, buyer_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  status TEXT NOT NULL DEFAULT '"'"'PENDING'"'"' CHECK(status IN ('"'"'PENDING'"'"','"'"'CONFIRMED'"'"','"'"'SHIPPED'"'"','"'"'DELIVERED'"'"','"'"'CANCELLED'"'"')),
+  status TEXT NOT NULL DEFAULT 'PENDING' CHECK(status IN ('PENDING','CONFIRMED','SHIPPED','DELIVERED','CANCELLED')),
   total_amount_cents BIGINT NOT NULL CHECK(total_amount_cents >= 0),
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
 CREATE INDEX IF NOT EXISTS idx_orders_buyer ON orders(buyer_id);
@@ -40,7 +40,8 @@ CREATE INDEX IF NOT EXISTS idx_cart_product ON cart_items(product_id);
 CREATE TABLE IF NOT EXISTS reviews(
   id INTEGER PRIMARY KEY AUTOINCREMENT, product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  rating INTEGER NOT NULL CHECK(rating BETWEEN 1 AND 5), comment TEXT NOT NULL DEFAULT '"'"''"'"',
+  rating INTEGER NOT NULL CHECK(rating BETWEEN 1 AND 5), comment TEXT NOT NULL DEFAULT '',
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
 CREATE INDEX IF NOT EXISTS idx_reviews_product ON reviews(product_id);
 CREATE INDEX IF NOT EXISTS idx_reviews_user ON reviews(user_id);
+
