@@ -12,13 +12,19 @@ for /L %%i in (1,1,30) do (
   timeout /t 2 /nobreak >nul
 )
 echo DB not ready - is Docker Desktop running?
-exit /b 1
+goto fail
 :ready
 echo [2/4] Postgres suite...
-python test\dynamic_pg.py || exit /b 1
+python test\dynamic_pg.py || goto fail
 echo [3/4] JWT + SQLite...
-python test\jwt_contract.py || exit /b 1
-python test\check_sqlite.py || exit /b 1
+python test\jwt_contract.py || goto fail
+python test\check_sqlite.py || goto fail
 echo [4/4] C++ core...
-g++ -std=c++20 -fsyntax-only -Wall -Wextra -Isrc src\model\Entities.cc || exit /b 1
+g++ -std=c++20 -fsyntax-only -Wall -Wextra -Isrc src\model\Entities.cc || goto fail
 echo ALL-LOCAL-GREEN
+pause
+exit /b 0
+:fail
+echo FAILED - see messages above.
+pause
+exit /b 1
