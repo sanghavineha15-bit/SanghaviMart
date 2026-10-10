@@ -1,0 +1,19 @@
+{
+  "name": "sanghavimart",
+  "version": "1.1.0",
+  "description": "SanghaviMart — Native C++20 multi-seller marketplace backend (Drogon + PostgreSQL/SQLite)",
+  "homepage": "https://github.com/YOUR_GH_USER/sanghavimart",
+  "license": "MIT",
+  "dependencies": [
+    "drogon",
+    "libsodium",
+    "spdlog",
+    "nlohmann-json",
+    "sqlite3",
+    "libpqxx",
+    "gtest",
+    "curl"
+  ],
+  "builtin-baseline": "2024-07-22",
+  "overrides": []
+}

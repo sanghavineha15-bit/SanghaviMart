@@ -1,0 +1,27 @@
+name: CI
+on: { push: {}, pull_request: {} }
+jobs:
+  build-test:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install toolchain
+        run: sudo apt-get update && sudo apt-get install -y build-essential cmake ninja-build libsodium-dev libsqlite3-dev libcurl4-openssl-dev uuid-dev
+      - name: Bootstrap vcpkg
+        run: |
+          git clone https://github.com/microsoft/vcpkg.git
+          ./vcpkg/bootstrap-vcpkg.sh
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DCMAKE_TOOLCHAIN_FILE=$PWD/vcpkg/scripts/buildsystems/vcpkg.cmake -DSANGHAVIMART_ENABLE_ASAN_UBSAN=ON
+      - name: Build
+        run: cmake --build build
+      - name: cppcheck
+        run: cmake --build build --target cppcheck || true
+      - name: Test (ASan+UBSan)
+        run: cd build && ctest --output-on-failure
+  tsan-weekly:
+    if: github.event_name == '"'"'schedule'"'"'
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "weekly ThreadSanitizer run: configure with -DSANGHAVIMART_ENABLE_TSAN=ON -DSANGHAVIMART_ENABLE_ASAN_UBSAN=OFF"

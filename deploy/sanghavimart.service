@@ -1,0 +1,12 @@
+[Unit]
+Description=SanghaviMart marketplace backend
+After=network.target postgresql.service
+[Service]
+Type=simple
+User=sanghavimart
+WorkingDirectory=/opt/sanghavimart
+ExecStart=/opt/sanghavimart/bin/sanghavimart
+Restart=on-failure
+Environment=GEMINI_API_KEY=
+[Install]
+WantedBy=multi-user.target

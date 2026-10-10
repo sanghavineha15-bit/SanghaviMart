@@ -1,0 +1,17 @@
+:root{--bg:#0f172a;--card:#1e293b;--acc:#38bdf8;--txt:#e2e8f0}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--txt);font-family:system-ui,sans-serif}
+header{display:flex;justify-content:space-between;align-items:center;padding:12px 20px;background:#020617}
+header nav button{margin-left:8px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;padding:16px}
+.card{background:var(--card);border-radius:10px;padding:12px}
+.card h3{margin:6px 0}.card .price{color:var(--acc);font-weight:700}
+button{background:var(--acc);border:0;border-radius:8px;padding:8px 12px;cursor:pointer;font-weight:600}
+input,select,textarea{background:#020617;color:var(--txt);border:1px solid #334155;border-radius:8px;padding:8px;margin:4px}
+#chatFab{position:fixed;right:18px;bottom:18px;width:56px;height:56px;border-radius:50%;font-size:24px}
+#chatPanel{position:fixed;right:18px;bottom:84px;width:340px;max-height:480px;background:var(--card);border-radius:12px;display:none;flex-direction:column;overflow:hidden}
+#chatPanel.open{display:flex}#chatLog{flex:1;overflow:auto;padding:10px}
+.msg{margin:6px 0;padding:8px;border-radius:8px;background:#020617}
+.msg.me{background:#0c4a6e}
+#chatForm{display:flex}#chatForm input{flex:1}
+table{width:100%;border-collapse:collapse}td,th{border-bottom:1px solid #334155;padding:8px;text-align:left}
+.view{padding:16px}

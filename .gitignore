@@ -1,0 +1,8 @@
+build/
+vcpkg_installed/
+.env
+config.local.json
+*.db
+*.db-journal
+out/
+.cache/

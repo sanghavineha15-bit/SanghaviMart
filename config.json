@@ -1,0 +1,21 @@
+{
+  "listeners": [{ "address": "0.0.0.0", "port": 8080, "https": false }],
+  "threads_num": 4,
+  "session_timeout": 1800,
+  "document_root": "./public",
+  "enable_session": true,
+  "plugins": [
+    {
+      "name": "sanghavi::sanghavimart::DbPlugin",
+      "dependencies": [],
+      "config": {
+        "rdbms": "sqlite3",
+        "connection_string": "sanghavimart.db",
+        "connection_number": 4,
+        "migrations_dir": "./db/migrations",
+        "chat_provider": "mock"
+      }
+    }
+  ],
+  "db_clients": []
+}

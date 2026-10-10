@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SanghaviMart</title><link rel="stylesheet" href="/style.css"></head>
+<body>
+<header><h1>SanghaviMart</h1>
+<nav>
+<button data-v="home">Home</button><button data-v="cart">Cart (<span id="cartN">0</span>)</button>
+<button data-v="orders">Orders</button><button data-v="seller">Seller</button><button data-v="admin">Admin</button>
+<button data-v="auth">Login</button>
+</nav></header>
+<main id="app"></main>
+<button id="chatFab" title="Chat with us">?</button>
+<div id="chatPanel"><div id="chatLog"></div>
+<form id="chatForm"><input id="chatIn" maxlength="500" placeholder="Ask about products, orders..." autocomplete="off"><button>Send</button></form></div>
+<script src="/app.js"></script>
+</body></html>
