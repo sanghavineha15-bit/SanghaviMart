@@ -4,11 +4,16 @@
 #include "exception/AppException.h"
 #include "util/JsonUtil.h"
 #include "util/ValidationUtil.h"
+#include "util/JwtUtil.h"
 
 namespace sanghavi::sanghavimart {
 
 ServiceLocator& ServiceLocator::Instance() { static ServiceLocator s; return s; }
-void ServiceLocator::Init(drogon::orm::DbClientPtr db, std::string chat_provider, std::string gemini_key) {
+void ServiceLocator::Init(drogon::orm::DbClientPtr db, std::string chat_provider,
+                           std::string gemini_key, std::string jwt_secret) {
+  if (jwt_secret.size() < 16)
+    throw std::runtime_error("JWT_SECRET must be >= 16 chars (env JWT_SECRET or plugin jwt_secret)");
+  jwt_secret_ = std::move(jwt_secret);
   db_ = std::move(db);
   users_ = std::shared_ptr<IUserRepository>(RepositoryFactory::CreateUsers(db_));
   auto prods = std::shared_ptr<IProductRepository>(RepositoryFactory::CreateProducts(db_));
@@ -23,16 +28,31 @@ void ServiceLocator::Init(drogon::orm::DbClientPtr db, std::string chat_provider
   ordsvc_ = std::make_shared<OrderService>(ords, cart, prods, pay);
   revsvc_ = std::make_shared<ReviewService>(revs);
   chat_ = std::make_unique<ChatService>(ChatProviderFactory::Create(chat_provider, gemini_key));
+  chat_->SetStore(db_);  // Postgres-backed limits: stateless-safe across instances
 }
 std::string ServiceLocator::RequestId(const drogon::HttpRequestPtr& req) const {
   auto v = req->getAttributes()->get<std::string>("request_id");
   return v.empty() ? "-" : v;
 }
+ServiceLocator::AuthIdentity ServiceLocator::Identity(
+    const drogon::HttpRequestPtr& req) const {
+  const std::string tok = JwtUtil::BearerOf(req->getHeader("Authorization"));
+  if (!tok.empty()) {
+    try {
+      JwtClaims c = JwtUtil::Verify(tok, jwt_secret_);
+      return AuthIdentity{c.user_id, c.role};
+    } catch (const std::exception&) {
+      // fall through to session
+    }
+  }
+  return AuthIdentity{req->session()->get<std::int64_t>("user_id"),
+                      req->session()->get<std::string>("role")};
+}
 std::int64_t ServiceLocator::SessionUser(const drogon::HttpRequestPtr& req) const {
-  return req->session()->get<std::int64_t>("user_id");
+  return Identity(req).user_id;
 }
 std::string ServiceLocator::SessionRole(const drogon::HttpRequestPtr& req) const {
-  return req->session()->get<std::string>("role");
+  return Identity(req).role;
 }
 std::shared_ptr<AuthService> ServiceLocator::Auth() { return auth_; }
 std::shared_ptr<ProductService> ServiceLocator::Products() { return prod_; }
@@ -79,7 +99,12 @@ void AuthController::Register(const drogon::HttpRequestPtr& req, std::function<v
     User u = ServiceLocator::Instance().Auth()->Register(
         JsonUtil::Str(j, "name"), JsonUtil::Str(j, "email"),
         JsonUtil::Str(j, "password"), JsonUtil::Str(j, "role"), Ctx(req));
-    SendOk(std::move(cb), UserJson(u), drogon::k201Created);
+    Json::Value reg = UserJson(u);
+    reg["token"] = JwtUtil::Issue(
+        u.id, ToString(u.role), ServiceLocator::Instance().JwtSecret());
+    req->session()->insert("user_id", u.id);
+    req->session()->insert("role", ToString(u.role));
+    SendOk(std::move(cb), reg, drogon::k201Created);
   } catch (const std::exception& e) { SendErr(std::move(cb), e); }
 }
 void AuthController::Login(const drogon::HttpRequestPtr& req, std::function<void(const drogon::HttpResponsePtr&)>&& cb) {
@@ -90,7 +115,10 @@ void AuthController::Login(const drogon::HttpRequestPtr& req, std::function<void
     req->session()->erase("user_id");  // discard pre-auth session, issue fresh one
     req->session()->insert("user_id", u.id);
     req->session()->insert("role", ToString(u.role));
-    SendOk(std::move(cb), UserJson(u));
+    Json::Value body = UserJson(u);
+    body["token"] = JwtUtil::Issue(  // stateless credential for scale-to-zero fleets
+        u.id, ToString(u.role), ServiceLocator::Instance().JwtSecret());
+    SendOk(std::move(cb), body);
   } catch (const std::exception& e) { SendErr(std::move(cb), e); }
 }
 void AuthController::Logout(const drogon::HttpRequestPtr& req, std::function<void(const drogon::HttpResponsePtr&)>&& cb) {
@@ -316,8 +344,12 @@ void AdminController::RemoveListing(const drogon::HttpRequestPtr& req, std::func
 void ChatController::Chat(const drogon::HttpRequestPtr& req, std::function<void(const drogon::HttpResponsePtr&)>&& cb) {
   try {
     auto j = *req->getJsonObject();
+    auto iden = ServiceLocator::Instance().Identity(req);
+    const std::string key = iden.user_id != 0
+                                ? "u" + std::to_string(iden.user_id)
+                                : "anon:" + req->getPeerAddr().toIp();
     std::string reply = ServiceLocator::Instance().Chat()->Reply(
-        req->session()->get<std::string>("session_id"), JsonUtil::Str(j, "message"));
+        key, JsonUtil::Str(j, "message"));
     Json::Value v; v["reply"] = reply; SendOk(std::move(cb), v);
   } catch (const std::exception& e) { SendErr(std::move(cb), e); }
 }

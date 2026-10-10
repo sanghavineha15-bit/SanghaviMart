@@ -11,9 +11,10 @@
       "config": {
         "rdbms": "postgresql",
         "connection_string": "host=db port=5432 dbname=sanghavimart user=sanghavi password=changeme",
-        "connection_number": 8,
+        "connection_number": 2,
         "migrations_dir": "./db/postgres",
-        "chat_provider": "mock"
+        "chat_provider": "mock",
+        "jwt_secret": ""
       }
     }
   ],

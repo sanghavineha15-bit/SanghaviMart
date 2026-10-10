@@ -1,5 +1,5 @@
 #pragma once
-// SanghaviMart Controllers — thin HTTP orchestration only (no SQL, no business logic).
+// SanghaviMart Controllers - thin HTTP orchestration only (no SQL, no business logic).
 // Routes versioned under /api/v1. Front Controller = Drogon router + BaseController.
 #include <drogon/HttpController.h>
 #include <memory>
@@ -12,8 +12,17 @@ namespace sanghavi::sanghavimart {
 class ServiceLocator {
  public:
   static ServiceLocator& Instance();
-  void Init(drogon::orm::DbClientPtr db, std::string chat_provider, std::string gemini_key);
+  void Init(drogon::orm::DbClientPtr db, std::string chat_provider,
+            std::string gemini_key, std::string jwt_secret);
   drogon::orm::DbClientPtr Db() const { return db_; }
+  /// Stateless identity: verified JWT Bearer first, Drogon session fallback.
+  /// Sessions die on Vercel scale-to-zero; JWTs survive it.
+  struct AuthIdentity {
+    std::int64_t user_id{0};
+    std::string role;
+  };
+  AuthIdentity Identity(const drogon::HttpRequestPtr& req) const;
+  std::string JwtSecret() const { return jwt_secret_; }
   std::string RequestId(const drogon::HttpRequestPtr& req) const;
   std::int64_t SessionUser(const drogon::HttpRequestPtr& req) const;
   std::string SessionRole(const drogon::HttpRequestPtr& req) const;
@@ -34,6 +43,7 @@ class ServiceLocator {
   std::shared_ptr<AuthService> auth_; std::shared_ptr<ProductService> prod_;
   std::shared_ptr<CartService> cartsvc_; std::shared_ptr<OrderService> ordsvc_;
   std::shared_ptr<ReviewService> revsvc_; std::unique_ptr<ChatService> chat_;
+  std::string jwt_secret_;
 };
 
 class AuthController : public drogon::HttpController<AuthController> {
@@ -136,4 +146,4 @@ class HealthController : public drogon::HttpController<HealthController> {
   void Health(const drogon::HttpRequestPtr& req, std::function<void(const drogon::HttpResponsePtr&)>&& cb);
 };
 
-}  // namespace sanghavi::sanghavimart
+}  // namespace sanghavi::sanghavimart

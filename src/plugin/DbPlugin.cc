@@ -1,3 +1,4 @@
+#include <cstdlib>
 #include "plugin/DbPlugin.h"
 #include <filesystem>
 #include <fstream>
@@ -9,6 +10,8 @@ namespace sanghavi::sanghavimart {
 void DbPlugin::initAndStart(const Json::Value& config) {
   std::string rdbms = config.get("rdbms", "sqlite3").asString();
   std::string conn = config.get("connection_string", "sanghavimart.db").asString();
+  if (const char* url = std::getenv("DATABASE_URL")) conn = url;  // Vercel Postgres
+  else if (const char* purl = std::getenv("POSTGRES_URL")) conn = purl;
   size_t conns = config.get("connection_number", 4).asUInt();
   if (config.isMember("migrations_dir")) migrations_dir_ = config["migrations_dir"].asString();
   spdlog::info("DbPlugin: rdbms={} conns={}", rdbms, conns);
@@ -20,7 +23,9 @@ void DbPlugin::initAndStart(const Json::Value& config) {
   std::string provider = "mock", key;
   if (config.isMember("chat_provider")) provider = config["chat_provider"].asString();
   if (const char* k = std::getenv("GEMINI_API_KEY")) key = k;  // server-side env only
-  ServiceLocator::Instance().Init(client_, provider, key);
+  std::string jwt = config.get("jwt_secret", "").asString();
+  if (const char* jenv = std::getenv("JWT_SECRET")) jwt = jenv;  // Vercel env wins
+  ServiceLocator::Instance().Init(client_, provider, key, jwt);
   spdlog::info("DbPlugin: ready (chat_provider={})", provider);
 }
 void DbPlugin::shutdown() { client_.reset(); }
@@ -52,4 +57,4 @@ void MigrationService::ApplyDirectory(const std::string& dir) {
     }
   }
 }
-}  // namespace sanghavi::sanghavimart
+}  // namespace sanghavi::sanghavimart

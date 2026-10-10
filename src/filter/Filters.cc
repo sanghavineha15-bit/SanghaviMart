@@ -1,10 +1,12 @@
 #include "filter/Filters.h"
 #include <random>
 #include <spdlog/spdlog.h>
+#include "controller/Controllers.h"
 namespace sanghavi::sanghavimart {
 void AuthFilter::doFilter(const drogon::HttpRequestPtr& req, drogon::FilterCallback&& cb,
                           drogon::FilterChainCallback&& chain) {
-  if (req->session()->get<std::int64_t>("user_id") == 0) {
+  // JWT-first: survives Vercel scale-to-zero; session is the local-dev fallback.
+  if (ServiceLocator::Instance().SessionUser(req) == 0) {
     Json::Value b; b["success"] = false; b["data"] = Json::Value::null;
     b["error"]["code"] = "UNAUTHORIZED"; b["error"]["message"] = "Authentication required";
     auto r = drogon::HttpResponse::newHttpJsonResponse(b);
@@ -25,4 +27,4 @@ void CORSFilter::doFilter(const drogon::HttpRequestPtr& req, drogon::FilterCallb
                           drogon::FilterChainCallback&& chain) {
   (void)req; (void)cb; chain();  // headers applied in main via post-handling advice
 }
-}  // namespace sanghavi::sanghavimart
+}  // namespace sanghavi::sanghavimart

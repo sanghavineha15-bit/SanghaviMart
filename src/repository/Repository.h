@@ -2,8 +2,9 @@
 // SanghaviMart Repository interfaces (abstract base classes, pure virtual).
 // ALL SQL lives in implementations; services depend ONLY on these interfaces
 // (dependency inversion via constructor-injected shared_ptr<Interface>).
-// Every query is parameterized — no string-concatenated SQL, ever.
+// Every query is parameterized - no string-concatenated SQL, ever.
 #include <cstdint>
+#include <drogon/orm/DbClient.h>
 #include <memory>
 #include <optional>
 #include <string>
@@ -65,7 +66,7 @@ class IReviewRepository {
   virtual double AvgRating(std::int64_t product_id) = 0;
 };
 
-/// Factory — instantiates repository implementations, returning unique_ptr<Interface>.
+/// Factory - instantiates repository implementations, returning unique_ptr<Interface>.
 class RepositoryFactory {
  public:
   static std::unique_ptr<IUserRepository> CreateUsers(drogon::orm::DbClientPtr db);
@@ -75,4 +76,4 @@ class RepositoryFactory {
   static std::unique_ptr<IReviewRepository> CreateReviews(drogon::orm::DbClientPtr db);
 };
 
-}  // namespace sanghavi::sanghavimart
+}  // namespace sanghavi::sanghavimart

@@ -30,7 +30,8 @@ def migrate(c):
     c.execute("CREATE TABLE IF NOT EXISTS schema_migrations(version INTEGER PRIMARY KEY, applied_at TIMESTAMPTZ DEFAULT NOW())")
     files = sorted(BASE.glob("V*.sql"), key=lambda p: p.name)
     assert [f.name for f in files] == ["V1__init_schema.sql", "V2__add_reviews_table.sql",
-                                       "V3__add_index_orders_status.sql", "V4__seed_admin.sql"], files
+                                       "V3__add_index_orders_status.sql", "V4__seed_admin.sql",
+                                       "V5__chat_persistence.sql"], files
     for f in files:
         ver = int(f.name[1])
         if c.execute("SELECT version FROM schema_migrations WHERE version=%s", (ver,)).fetchone():
@@ -39,10 +40,14 @@ def migrate(c):
             c.execute(f.read_text())
             c.execute("INSERT INTO schema_migrations(version) VALUES(%s)", (ver,))
     vers = [r[0] for r in c.execute("SELECT version FROM schema_migrations ORDER BY 1").fetchall()]
-    assert vers == [1, 2, 3, 4], vers
+    assert vers == [1, 2, 3, 4, 5], vers
 
 def main():
     c = conn()
+    # Greenfield every run: drop + recreate schema so absolute asserts
+    # (stock 120-2, revenue 2*94900, single admin row) stay deterministic.
+    c.execute("DROP SCHEMA public CASCADE")
+    c.execute("CREATE SCHEMA public")
     check("M1 migrations apply in order, tracked", lambda: migrate(c))
     check("M2 idempotent re-run applies nothing", lambda: migrate(c))
 
@@ -197,6 +202,41 @@ def main():
         have = {r[0] for r in c.execute("SELECT indexname FROM pg_indexes WHERE schemaname='public'").fetchall()}
         assert want <= have, f"missing: {want - have}"
     check("IDX every FK indexed", idx)
+
+    # --- V5/O4-stateless: chat rate-limit + cache tables (mirror ChatService SQL) ---
+    def chat():
+        tables = {r[0] for r in c.execute(
+            "SELECT tablename FROM pg_tables WHERE schemaname='public'").fetchall()}
+        assert {"chat_hits", "chat_cache"} <= tables, tables
+        c.execute("DELETE FROM chat_hits WHERE session_key=%s", ("u-test",))
+        c.execute("DELETE FROM chat_cache WHERE session_key=%s", ("u-test",))
+        now = 1700000000
+        for i in range(10):  # 10 hits inside the window: allowed
+            c.execute("DELETE FROM chat_hits WHERE session_key=%s AND hit_at_sec < %s",
+                      ("u-test", now - 60))
+            n = c.execute("SELECT COUNT(*) FROM chat_hits WHERE session_key=%s",
+                          ("u-test",)).fetchone()[0]
+            assert n < 10, "limit tripped early"
+            c.execute("INSERT INTO chat_hits(session_key,hit_at_sec) VALUES(%s,%s)",
+                      ("u-test", now))
+        n = c.execute("SELECT COUNT(*) FROM chat_hits WHERE session_key=%s",
+                      ("u-test",)).fetchone()[0]
+        assert n == 10, n  # 11th must be rejected by the service
+        c.execute("INSERT INTO chat_cache(session_key,question,reply) VALUES(%s,%s,%s)"
+                  " ON CONFLICT(session_key,question) DO NOTHING",
+                  ("u-test", "shipping?", "Ships in 3-5 days"))
+        c.execute("INSERT INTO chat_cache(session_key,question,reply) VALUES(%s,%s,%s)"
+                  " ON CONFLICT(session_key,question) DO NOTHING",
+                  ("u-test", "shipping?", "Ships in 3-5 days"))  # idempotent
+        got = c.execute("SELECT reply FROM chat_cache WHERE session_key=%s AND question=%s",
+                        ("u-test", "shipping?")).fetchone()[0]
+        assert got == "Ships in 3-5 days", got
+        c.execute("DELETE FROM chat_hits WHERE session_key=%s AND hit_at_sec < %s",
+                  ("u-test", now + 61 - 60))  # window slides: old hits pruned
+        n = c.execute("SELECT COUNT(*) FROM chat_hits WHERE session_key=%s",
+                      ("u-test",)).fetchone()[0]
+        assert n == 0, n
+    check("V5 chat tables: 10/min window + cache roundtrip", chat)
 
     print(f"\n==== {len(passed)} passed, {len(failed)} failed ====")
     c.close()

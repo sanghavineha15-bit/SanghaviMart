@@ -172,10 +172,10 @@ std::string MockChatProvider::GetReply(const std::string& msg, const std::string
   if (m.find("ship") != std::string::npos) return "Orders flow Pending -> Confirmed -> Shipped -> Delivered. Shipping usually takes 3-5 days after confirmation.";
   if (m.find("track") != std::string::npos) return "Track your order from Orders page; each order shows its live status.";
   if (m.find("sell") != std::string::npos) return "Sellers register with role SELLER, then manage listings from the Seller Dashboard (create, edit, delete, view incoming orders and revenue).";
-  if (m.find("payment") != std::string::npos || m.find("pay") != std::string::npos) return "Checkout uses a mock payment confirmation step — no real gateway, no card data leaves your browser.";
+  if (m.find("payment") != std::string::npos || m.find("pay") != std::string::npos) return "Checkout uses a mock payment confirmation step - no real gateway, no card data leaves your browser.";
   if (m.find("refund") != std::string::npos) return "Cancelled orders are refunded instantly to the mock-payment method.";
-  if (m.find("discount") != std::string::npos || m.find("coupon") != std::string::npos) return "There are no coupons right now — the catalogue price you see is the price you pay.";
-  if (m.find("contact") != std::string::npos || m.find("support") != std::string::npos) return "Reach support at support@sanghavimart.local — median reply time one business day.";
+  if (m.find("discount") != std::string::npos || m.find("coupon") != std::string::npos) return "There are no coupons right now - the catalogue price you see is the price you pay.";
+  if (m.find("contact") != std::string::npos || m.find("support") != std::string::npos) return "Reach support at support@sanghavimart.local - median reply time one business day.";
   if (m.find("hello") != std::string::npos || m.find("hi") != std::string::npos) return "Hello! I can help with products, orders, shipping, returns and selling on SanghaviMart. What do you need?";
   return "I can help with SanghaviMart products, orders, shipping, returns and selling. Try asking about shipping times, returns, or how to sell.";
 }
@@ -212,15 +212,48 @@ std::string ChatService::Norm(const std::string& s) {
   std::string o; for (char c : s) o += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
   return o;
 }
+void ChatService::SetStore(drogon::orm::DbClientPtr db) {
+  std::lock_guard<std::mutex> lock(mutex_);
+  store_ = std::move(db);
+}
+
+bool ChatService::AllowStored(const std::string& sid, std::int64_t now) {
+  // Caller holds mutex_. Same semantics as the in-memory path: the hit counts
+  // even when the reply is served from cache.
+  store_->execSqlSync(
+      "DELETE FROM chat_hits WHERE session_key=$1 AND hit_at_sec < $2", sid,
+      now - 60);
+  auto r = store_->execSqlSync(
+      "SELECT COUNT(*) AS c FROM chat_hits WHERE session_key=$1", sid);
+  if (r[0]["c"].as<std::int64_t>() >= 10) return false;
+  store_->execSqlSync(
+      "INSERT INTO chat_hits(session_key, hit_at_sec) VALUES($1,$2)", sid, now);
+  return true;
+}
+
 std::string ChatService::Reply(const std::string& sid, const std::string& message) {
   if (message.empty() || message.size() > 500) throw ValidationException("message must be 1..500 chars");
+  const std::string nkey = Norm(message);
   std::lock_guard<std::mutex> lock(mutex_);
   const std::int64_t now = NowSec();
+  if (store_) {
+    if (!AllowStored(sid, now)) throw ConflictException("rate limit: 10 messages/minute");
+    auto r = store_->execSqlSync(
+        "SELECT reply FROM chat_cache WHERE session_key=$1 AND question=$2",
+        sid, nkey);
+    if (!r.empty()) return r[0]["reply"].as<std::string>();  // per-session repeat cache
+    std::string reply = provider_->GetReply(message, kChatPrompt);
+    store_->execSqlSync(
+        "INSERT INTO chat_cache(session_key,question,reply) VALUES($1,$2,$3)"
+        " ON CONFLICT(session_key,question) DO NOTHING",
+        sid, nkey, reply);
+    return reply;
+  }
   auto& hits = hits_[sid];
   hits.erase(std::remove_if(hits.begin(), hits.end(), [&](std::int64_t t){ return now - t > 60; }), hits.end());
   if (hits.size() >= 10) throw ConflictException("rate limit: 10 messages/minute");
   hits.push_back(now);
-  const std::string key = Norm(message);
+  const std::string key = nkey;
   auto sit = cache_.find(sid);
   if (sit != cache_.end()) {
     auto cit = sit->second.find(key);
@@ -230,4 +263,4 @@ std::string ChatService::Reply(const std::string& sid, const std::string& messag
   cache_[sid][key] = reply;
   return reply;
 }
-}  // namespace sanghavi::sanghavimart
+}  // namespace sanghavi::sanghavimart

@@ -1,12 +1,21 @@
 // SanghaviMart storefront (vanilla JS + fetch AJAX). All API calls under /api/v1.
-// User output is rendered via textContent (escaped) — never innerHTML with user data.
+// User output is rendered via textContent (escaped) ï¿½ never innerHTML with user data.
 const $ = (s) => document.querySelector(s);
 const app = $("#app");
 let me = null;
+const TOKEN_KEY = "sm_token"; // stateless JWT: survives Vercel scale-to-zero (no server session needed)
+function authHeaders() {
+  const t = localStorage.getItem(TOKEN_KEY);
+  return t ? { "Authorization": "Bearer " + t } : {};
+}
 async function api(path, opts = {}) {
-  const r = await fetch(path, { headers: { "Content-Type": "application/json" }, ...opts });
+  const headers = { "Content-Type": "application/json", ...authHeaders(), ...((opts && opts.headers) || {}) };
+  const r = await fetch(path, { ...opts, headers });
   const j = await r.json();
-  if (!j.success) throw new Error((j.error && j.error.message) || ("HTTP " + r.status));
+  if (!j.success) {
+    if (r.status === 401) localStorage.removeItem(TOKEN_KEY); // stale/expired token: drop it
+    throw new Error((j.error && j.error.message) || ("HTTP " + r.status));
+  }
   return j.data;
 }
 function esc(s) { return String(s == null ? "" : s); }
@@ -32,8 +41,8 @@ const VIEWS = {
   },
   async reviews(pid, name) {
     const rs = await api("/api/v1/products/" + pid + "/reviews");
-    app.innerHTML = ""; app.append(el("h2", "Reviews — " + name));
-    for (const r of rs) app.append(el("div", "*".repeat(r.rating) + " — " + r.comment));
+    app.innerHTML = ""; app.append(el("h2", "Reviews ï¿½ " + name));
+    for (const r of rs) app.append(el("div", "*".repeat(r.rating) + " ï¿½ " + r.comment));
     const cm = document.createElement("input"); cm.placeholder = "Write a review (must have ordered)";
     const go = document.createElement("button"); go.textContent = "Submit 5-star";
     go.onclick = async () => { try { await api("/api/v1/products/" + pid + "/reviews", { method: "POST", body: JSON.stringify({ rating: 5, comment: cm.value }) }); VIEWS.reviews(pid, name); } catch (e) { alert(e.message); } };
@@ -41,7 +50,7 @@ const VIEWS = {
   },
   async cart() {
     const c = await api("/api/v1/cart");
-    app.innerHTML = ""; app.append(el("h2", "Cart — total " + money(c.total_cents)));
+    app.innerHTML = ""; app.append(el("h2", "Cart ï¿½ total " + money(c.total_cents)));
     const t = document.createElement("table");
     for (const i of c.items) {
       const tr = document.createElement("tr");
@@ -101,15 +110,20 @@ const VIEWS = {
     const p = document.createElement("input"); p.placeholder = "password"; p.type = "password";
     const n = document.createElement("input"); n.placeholder = "name (register)";
     const login = document.createElement("button"); login.textContent = "Login";
-    login.onclick = async () => { try { await api("/api/v1/auth/login", { method: "POST", body: JSON.stringify({ email: e.value, password: p.value }) }); await boot(); } catch (er) { alert(er.message); } };
+    login.onclick = async () => { try { const d = await api("/api/v1/auth/login", { method: "POST", body: JSON.stringify({ email: e.value, password: p.value }) }); if (d.token) localStorage.setItem(TOKEN_KEY, d.token); await boot(); } catch (er) { alert(er.message); } };
     const reg = document.createElement("button"); reg.textContent = "Register as Buyer"; reg.style.marginLeft = "6px";
-    reg.onclick = async () => { try { await api("/api/v1/auth/register", { method: "POST", body: JSON.stringify({ name: n.value, email: e.value, password: p.value, role: "BUYER" }) }); await boot(); } catch (er) { alert(er.message); } };
+    reg.onclick = async () => { try { const d = await api("/api/v1/auth/register", { method: "POST", body: JSON.stringify({ name: n.value, email: e.value, password: p.value, role: "BUYER" }) }); if (d.token) localStorage.setItem(TOKEN_KEY, d.token); await boot(); } catch (er) { alert(er.message); } };
     const regs = document.createElement("button"); regs.textContent = "Register as Seller"; regs.style.marginLeft = "6px";
-    regs.onclick = async () => { try { await api("/api/v1/auth/register", { method: "POST", body: JSON.stringify({ name: n.value, email: e.value, password: p.value, role: "SELLER" }) }); await boot(); } catch (er) { alert(er.message); } };
+    regs.onclick = async () => { try { const d = await api("/api/v1/auth/register", { method: "POST", body: JSON.stringify({ name: n.value, email: e.value, password: p.value, role: "SELLER" }) }); if (d.token) localStorage.setItem(TOKEN_KEY, d.token); await boot(); } catch (er) { alert(er.message); } };
     app.append(e, p, n, login, reg, regs);
   }
 };
 document.querySelectorAll("button[data-v]").forEach((b) => { b.onclick = () => VIEWS[b.dataset.v](); });
+$("#logoutBtn").onclick = async () => {
+  localStorage.removeItem(TOKEN_KEY);
+  try { await api("/api/v1/auth/logout", { method: "POST", body: "{}" }); } catch { /* stateless: token drop is the real logout */ }
+  await boot();
+};
 // Chat widget
 $("#chatFab").onclick = () => $("#chatPanel").classList.toggle("open");
 $("#chatForm").onsubmit = async (ev) => {

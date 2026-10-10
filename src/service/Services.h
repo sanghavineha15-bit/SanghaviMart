@@ -1,9 +1,11 @@
 #pragma once
-// SanghaviMart Service layer — business logic + validation (pure C++, no DB calls).
+// SanghaviMart Service layer - business logic + validation (pure C++, no DB calls).
 // Services depend on repository INTERFACES via constructor-injected shared_ptr.
 #include <cstdint>
+#include <drogon/orm/DbClient.h>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -133,14 +135,18 @@ class ChatProviderFactory {
 class ChatService {
  public:
   explicit ChatService(std::unique_ptr<ChatProvider> provider);
+  /// Postgres-backed store (Vercel-safe). Null store = in-memory (local dev).
+  void SetStore(drogon::orm::DbClientPtr db);
   /// Enforces input cap + per-session rate limit (10/min) + per-session cache.
   std::string Reply(const std::string& session_id, const std::string& message);
  private:
+  bool AllowStored(const std::string& sid, std::int64_t now);
   std::unique_ptr<ChatProvider> provider_;
+  drogon::orm::DbClientPtr store_;
   std::mutex mutex_;
   std::unordered_map<std::string, std::vector<std::int64_t>> hits_;  ///< session -> epoch secs
   std::unordered_map<std::string, std::unordered_map<std::string, std::string>> cache_;
   static std::string Norm(const std::string& s);
 };
 
-}  // namespace sanghavi::sanghavimart
+}  // namespace sanghavi::sanghavimart
