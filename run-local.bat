@@ -18,6 +18,7 @@ pause
 exit /b 1
 :ready
 python -m pip install --quiet psycopg argon2-cffi >nul 2>&1
+python test\seed_catalog_v2.py --if-empty
 echo Starting SanghaviMart on http://localhost:8080 ...
 python demo-server.py
 pause

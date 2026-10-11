@@ -379,6 +379,13 @@ def ensure_admin():
     elif "REPLACE_ME" in r[0]:
         c.execute("UPDATE users SET password_hash=%s WHERE email='admin@sanghavimart.local'", (ph.hash("Admin123!"),))
         print("demo admin password set: admin@sanghavimart.local / Admin123!")
+    s = c.execute("SELECT password_hash FROM users WHERE email='seller@sanghavimart.local'").fetchone()
+    if s is None:
+        c.execute("INSERT INTO users(name,email,password_hash,role) VALUES('Demo Seller','seller@sanghavimart.local',%s,'SELLER')", (ph.hash("Seller123!"),))
+        print("demo seller created: seller@sanghavimart.local / Seller123!")
+    elif "REPLACE_ME" in s[0]:
+        c.execute("UPDATE users SET password_hash=%s WHERE email='seller@sanghavimart.local'", (ph.hash("Seller123!"),))
+        print("demo seller password set: seller@sanghavimart.local / Seller123!")
     c.close()
 
 if __name__ == "__main__":
