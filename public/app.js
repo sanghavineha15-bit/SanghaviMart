@@ -247,6 +247,7 @@ const VIEWS = {
         pwPane.hidden = isCode;
         go.hidden = isCode;
         codePane.hidden = !isCode;
+        p.required = !isCode; // hidden required fields silently veto submit
       };
       tPw.onclick = () => pick(false);
       tCode.onclick = () => pick(true);
