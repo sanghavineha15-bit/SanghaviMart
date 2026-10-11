@@ -36,7 +36,6 @@ const VIEWS = {
     async function load() {
       const items = await api("/api/v1/products?limit=100&q=" + encodeURIComponent(q.value) + "&category=" + encodeURIComponent(cat.value));
       g.innerHTML = "";
-      const n = document.createElement("p"); n.textContent = items.length + " products"; n.style.color = "var(--ink-soft)"; g.append(n);
       for (const p of items) {
         const c = document.createElement("div"); c.className = "card";
         if (p.image_url) { const im = document.createElement("img"); im.src = p.image_url; im.alt = p.name; im.loading = "lazy"; c.append(im); }
