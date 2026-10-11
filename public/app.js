@@ -129,6 +129,8 @@ const VIEWS = {
   },
   async auth() {
     app.innerHTML = "";
+    app.append(el("h2", "Login or create your account"));
+    app.append(el("p", "New here? Fill name + email + password, then choose Register as Buyer or Seller."));
     const e = document.createElement("input"); e.placeholder = "email";
     const p = document.createElement("input"); p.placeholder = "password"; p.type = "password";
     const n = document.createElement("input"); n.placeholder = "name (register)";
@@ -159,5 +161,15 @@ $("#chatForm").onsubmit = async (ev) => {
   } catch (e) { const r = document.createElement("div"); r.className = "msg"; r.textContent = "Sorry, chat is unavailable right now."; log.append(r); }
   log.scrollTop = log.scrollHeight;
 };
-async function boot() { await refreshMe(); VIEWS.home(); }
+async function boot() {
+  await refreshMe();
+  try { await VIEWS.home(); }
+  catch {
+    app.innerHTML = "";
+    const w = document.createElement("h2"); w.textContent = "Server not reachable";
+    const p = document.createElement("p");
+    p.textContent = "Start it with run-local.bat (it picks a free port and opens the shop), then refresh this page.";
+    app.append(w, p);
+  }
+}
 boot();
