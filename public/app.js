@@ -24,20 +24,32 @@ async function refreshMe() { try { me = await api("/api/v1/auth/me"); } catch { 
 function money(c) { return "Rs." + (c / 100).toFixed(2); }
 const VIEWS = {
   async home() {
-    const q = prompt("Search keyword (blank=all):", "") || "";
-    const cat = prompt("Category filter (blank=all):", "") || "";
-    const items = await api("/api/v1/products?q=" + encodeURIComponent(q) + "&category=" + encodeURIComponent(cat));
-    app.innerHTML = ""; const g = document.createElement("div"); g.className = "grid";
-    for (const p of items) {
-      const c = document.createElement("div"); c.className = "card";
-      c.append(el("h3", p.name), el("div", p.description), el("div", money(p.price_cents) + " | stock " + p.stock_qty));
-      const b = document.createElement("button"); b.textContent = "Add to cart";
-      b.onclick = async () => { try { await api("/api/v1/cart", { method: "POST", body: JSON.stringify({ product_id: p.id, quantity: 1 }) }); alert("added"); } catch (e) { alert(e.message); } };
-      const r = document.createElement("button"); r.textContent = "Reviews"; r.style.marginLeft = "6px";
-      r.onclick = () => VIEWS.reviews(p.id, p.name);
-      c.append(b, r); g.append(c);
+    const CATS = ["", "electronics", "fashion", "footwear", "home", "kitchen", "grocery", "beauty", "sports", "books", "toys", "appliances"];
+    app.innerHTML = "";
+    const bar = document.createElement("div");
+    const q = document.createElement("input"); q.placeholder = "Search products..."; q.style.minWidth = "180px";
+    const cat = document.createElement("select");
+    for (const c of CATS) { const o = document.createElement("option"); o.value = c; o.textContent = c === "" ? "All categories" : c; cat.append(o); }
+    const go = document.createElement("button"); go.textContent = "Search"; go.style.marginLeft = "6px";
+    bar.append(q, cat, go); app.append(bar);
+    const g = document.createElement("div"); g.className = "grid"; app.append(g);
+    async function load() {
+      const items = await api("/api/v1/products?limit=100&q=" + encodeURIComponent(q.value) + "&category=" + encodeURIComponent(cat.value));
+      g.innerHTML = "";
+      const n = document.createElement("p"); n.textContent = items.length + " products"; n.style.color = "var(--ink-soft)"; g.append(n);
+      for (const p of items) {
+        const c = document.createElement("div"); c.className = "card";
+        if (p.image_url) { const im = document.createElement("img"); im.src = p.image_url; im.alt = p.name; im.loading = "lazy"; c.append(im); }
+        c.append(el("h3", p.name), el("div", p.description), el("div", money(p.price_cents) + " | stock " + p.stock_qty));
+        const b = document.createElement("button"); b.textContent = "Add to cart";
+        b.onclick = async () => { try { await api("/api/v1/cart", { method: "POST", body: JSON.stringify({ product_id: p.id, quantity: 1 }) }); alert("added"); } catch (e) { alert(e.message); } };
+        const r = document.createElement("button"); r.textContent = "Reviews"; r.style.marginLeft = "6px";
+        r.onclick = () => VIEWS.reviews(p.id, p.name);
+        c.append(b, r); g.append(c);
+      }
     }
-    app.append(g);
+    go.onclick = load; q.onkeydown = (e) => { if (e.key === "Enter") load(); };
+    await load();
   },
   async reviews(pid, name) {
     const rs = await api("/api/v1/products/" + pid + "/reviews");

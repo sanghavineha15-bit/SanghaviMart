@@ -126,6 +126,15 @@ main {
 .card .price, .card div:nth-of-type(2) { color: var(--ink); font-weight: 600; }
 .card button { margin-top: 12px; }
 .card button + button { margin-left: 8px; }
+.card img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  margin-bottom: 10px;
+  background: var(--paper-2);
+}
 
 /* Buttons: one ink voice, quiet states */
 button {

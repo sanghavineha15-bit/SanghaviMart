@@ -169,13 +169,17 @@ class H(BaseHTTPRequestHandler):
             return self.send(200, ujson(r))
         if path == "/api/v1/products" and m == "GET":
             kw, cat = q.get("q", [""])[0], q.get("category", [""])[0]
+            try:
+                lim = max(1, min(int(q.get("limit", ["50"])[0]), 100))
+            except ValueError:
+                lim = 50
             like = f"%{kw}%"
             if cat:
-                rows = c.execute("SELECT id,seller_id,name,description,price_cents,stock_qty,category,image_url FROM products WHERE category=%s AND (%s=%s OR name LIKE %s OR description LIKE %s) ORDER BY id LIMIT 50",
-                                 (cat, like, "%%", like, like)).fetchall()
+                rows = c.execute("SELECT id,seller_id,name,description,price_cents,stock_qty,category,image_url FROM products WHERE category=%s AND (%s=%s OR name LIKE %s OR description LIKE %s) ORDER BY id LIMIT %s",
+                                 (cat, like, "%%", like, like, lim)).fetchall()
             else:
-                rows = c.execute("SELECT id,seller_id,name,description,price_cents,stock_qty,category,image_url FROM products WHERE (%s=%s OR name LIKE %s OR description LIKE %s) ORDER BY id LIMIT 50",
-                                 (like, "%%", like, like)).fetchall()
+                rows = c.execute("SELECT id,seller_id,name,description,price_cents,stock_qty,category,image_url FROM products WHERE (%s=%s OR name LIKE %s OR description LIKE %s) ORDER BY id LIMIT %s",
+                                 (like, "%%", like, like, lim)).fetchall()
             return self.send(200, [pjson(r) for r in rows])
         if path == "/api/v1/products" and m == "POST":
             if err := need("SELLER"):
