@@ -127,20 +127,97 @@ const VIEWS = {
       }
     } catch (e) { app.innerHTML = ""; app.append(el("p", "Admin only: " + e.message)); }
   },
-  async auth() {
+  async auth(mode) {
     app.innerHTML = "";
-    app.append(el("h2", "Login or create your account"));
-    app.append(el("p", "New here? Fill name + email + password, then choose Register as Buyer or Seller."));
-    const e = document.createElement("input"); e.placeholder = "email";
-    const p = document.createElement("input"); p.placeholder = "password"; p.type = "password";
-    const n = document.createElement("input"); n.placeholder = "name (register)";
-    const login = document.createElement("button"); login.textContent = "Login";
-    login.onclick = async () => { try { const d = await api("/api/v1/auth/login", { method: "POST", body: JSON.stringify({ email: e.value, password: p.value }) }); if (d.token) localStorage.setItem(TOKEN_KEY, d.token); await boot(); } catch (er) { alert(er.message); } };
-    const reg = document.createElement("button"); reg.textContent = "Register as Buyer"; reg.style.marginLeft = "6px";
-    reg.onclick = async () => { try { const d = await api("/api/v1/auth/register", { method: "POST", body: JSON.stringify({ name: n.value, email: e.value, password: p.value, role: "BUYER" }) }); if (d.token) localStorage.setItem(TOKEN_KEY, d.token); await boot(); } catch (er) { alert(er.message); } };
-    const regs = document.createElement("button"); regs.textContent = "Register as Seller"; regs.style.marginLeft = "6px";
-    regs.onclick = async () => { try { const d = await api("/api/v1/auth/register", { method: "POST", body: JSON.stringify({ name: n.value, email: e.value, password: p.value, role: "SELLER" }) }); if (d.token) localStorage.setItem(TOKEN_KEY, d.token); await boot(); } catch (er) { alert(er.message); } };
-    app.append(e, p, n, login, reg, regs);
+    mode = mode || "signin"; // signin | signup | admin
+    const ICONS = {
+      signin: '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4a3 3 0 0 1 6 0"/><rect x="9" y="11" width="6" height="7" rx="1"/></svg>',
+      signup: '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="10" cy="8" r="3.5"/><path d="M4 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M18 8v6M15 11h6"/></svg>',
+      admin: '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6z"/><circle cx="12" cy="10" r="2"/><path d="M12 12v3"/></svg>'
+    };
+    const COPY = {
+      signin: ["Welcome back", "Sign in to shop, sell and track orders."],
+      signup: ["Create your account", "Join as a buyer or a seller to get started."],
+      admin: ["Admin sign in", "Restricted area — authorized accounts only."]
+    };
+    const wrap = document.createElement("div"); wrap.className = "auth-wrap";
+    const badge = document.createElement("div"); badge.className = "auth-badge"; badge.innerHTML = ICONS[mode];
+    const h = document.createElement("h2"); h.className = "auth-title"; h.textContent = COPY[mode][0];
+    const sub = document.createElement("p"); sub.className = "auth-sub"; sub.textContent = COPY[mode][1];
+    wrap.append(badge, h, sub);
+    const card = document.createElement("form"); card.className = "auth-card"; card.autocomplete = "on";
+    const mkField = (labelText, input, ph) => {
+      input.placeholder = ph; input.required = true;
+      const lab = document.createElement("label"); lab.className = "auth-label";
+      lab.append(document.createTextNode(labelText), input);
+      card.append(lab);
+      return input;
+    };
+    let nameI = null, roleS = null, ruleRow = null, ruleMark = null;
+    if (mode === "signup") {
+      nameI = document.createElement("input"); nameI.autocomplete = "name";
+      mkField("Full name", nameI, "Jane Doe");
+    }
+    const e = document.createElement("input"); e.type = "email"; e.autocomplete = "email";
+    mkField("Email", e, "you@example.com");
+    const p = document.createElement("input"); p.type = "password";
+    p.autocomplete = mode === "signup" ? "new-password" : "current-password";
+    mkField("Password", p, "Your password");
+    if (mode === "signup") {
+      const box = document.createElement("div"); box.className = "auth-rules";
+      ruleRow = document.createElement("div"); ruleRow.className = "rule";
+      ruleMark = document.createElement("span"); ruleMark.className = "mark"; ruleMark.textContent = "•";
+      ruleRow.append(ruleMark, document.createTextNode("At least 8 characters"));
+      box.append(ruleRow); card.append(box);
+      p.addEventListener("input", () => {
+        const ok = p.value.length >= 8;
+        ruleRow.classList.toggle("ok", ok);
+        ruleMark.textContent = ok ? "✓" : "•";
+      });
+      roleS = document.createElement("select");
+      for (const [v, t] of [["BUYER", "Buy products"], ["SELLER", "Sell products"]]) {
+        const o = document.createElement("option"); o.value = v; o.textContent = t; roleS.append(o);
+      }
+      mkField("I want to", roleS, "");
+      roleS.required = true;
+    }
+    const go = document.createElement("button");
+    go.type = "submit"; go.className = "auth-btn";
+    go.textContent = mode === "signup" ? "Create account" : "Sign in";
+    card.append(go);
+    const goAuth = async () => {
+      try {
+        let d;
+        if (mode === "signup") {
+          d = await api("/api/v1/auth/register", { method: "POST", body: JSON.stringify({ name: nameI.value.trim(), email: e.value.trim(), password: p.value, role: roleS.value }) });
+        } else {
+          d = await api("/api/v1/auth/login", { method: "POST", body: JSON.stringify({ email: e.value.trim(), password: p.value }) });
+        }
+        if (d.token) localStorage.setItem(TOKEN_KEY, d.token);
+        await boot();
+      } catch (er) { alert(er.message); }
+    };
+    card.onsubmit = (ev) => { ev.preventDefault(); goAuth(); };
+    wrap.append(card);
+    const foot = document.createElement("p"); foot.className = "auth-foot";
+    const link = (text, to) => {
+      const a = document.createElement("button"); a.type = "button"; a.className = "auth-link"; a.textContent = text;
+      a.onclick = () => VIEWS.auth(to);
+      return a;
+    };
+    if (mode === "signin") {
+      foot.append(document.createTextNode("No account yet? "), link("Create one", "signup"));
+      const adminLine = document.createElement("p"); adminLine.className = "auth-foot";
+      adminLine.append(document.createTextNode("Site admin? "), link("Admin sign in", "admin"));
+      wrap.append(foot, adminLine);
+    } else if (mode === "signup") {
+      foot.append(document.createTextNode("Already have an account? "), link("Sign in", "signin"));
+      wrap.append(foot);
+    } else {
+      foot.append(link("← Back to sign in", "signin"));
+      wrap.append(foot);
+    }
+    app.append(wrap);
   }
 };
 document.querySelectorAll("button[data-v]").forEach((b) => { b.onclick = () => VIEWS[b.dataset.v](); });

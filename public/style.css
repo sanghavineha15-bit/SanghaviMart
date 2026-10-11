@@ -4,6 +4,13 @@
  * Preserves every JS-wired hook: #app .grid .card header nav #chatFab #chatPanel #chatLog .msg #chatForm table .view
  */
 :root {
+  --clay: #c4703f;
+  --clay-deep: #a5572b;
+  --auth-bg: #171310;
+  --auth-line: #33291f;
+  --auth-field: #221c17;
+  --auth-ink: #f5efe6;
+  --auth-soft: #b7a894;
   --paper: #faf7f1;
   --paper-2: #f2ecdf;
   --card: #ffffff;
@@ -229,6 +236,111 @@ th {
 .msg.me { background: var(--accent-soft); }
 #chatForm { display: flex; border-top: 1px solid var(--line); padding: 8px; }
 #chatForm input { flex: 1; margin: 0 8px 0 0; min-width: 0; }
+
+/* Auth card: centered dark card on paper, terracotta CTA (reference DNA) */
+.auth-wrap {
+  min-height: 62vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 36px 16px;
+  text-align: center;
+}
+.auth-badge {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: #2a2118;
+  color: var(--clay);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+.auth-title {
+  font-family: var(--font-display);
+  font-style: normal;
+  font-size: 28px;
+  margin: 0 0 6px;
+  overflow-wrap: anywhere;
+}
+.auth-sub { color: var(--ink-soft); margin: 0 0 8px; font-size: 14px; }
+.auth-card {
+  background: var(--auth-bg);
+  color: var(--auth-ink);
+  border: 1px solid var(--auth-line);
+  border-radius: 16px;
+  padding: 26px;
+  width: min(420px, 100%);
+  text-align: left;
+  margin-top: 12px;
+}
+.auth-label {
+  display: block;
+  font-size: 13px;
+  color: var(--auth-soft);
+  margin: 14px 0 0;
+}
+.auth-label input, .auth-label select {
+  display: block;
+  width: 100%;
+  margin: 6px 0 0;
+  background: var(--auth-field);
+  border: 1px solid var(--auth-line);
+  color: var(--auth-ink);
+}
+.auth-label input::placeholder { color: #7d6f5f; }
+.auth-label input:focus, .auth-label select:focus {
+  outline: 2px solid var(--clay);
+  outline-offset: 1px;
+  border-color: var(--clay);
+}
+.auth-btn {
+  width: 100%;
+  margin-top: 18px;
+  padding: 12px;
+  font-size: 15px;
+  background: var(--clay);
+  border-color: transparent;
+  color: #fff8f2;
+}
+.auth-btn:hover, .auth-btn.is-hover { background: var(--clay-deep); }
+.auth-btn:focus-visible, .auth-btn.is-focus {
+  outline: 2px solid var(--clay);
+  outline-offset: 2px;
+}
+.auth-btn:active, .auth-btn.is-active { transform: translateY(1px); }
+.auth-rules {
+  background: var(--auth-field);
+  border: 1px solid var(--auth-line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-top: 12px;
+  font-size: 13px;
+  color: var(--auth-soft);
+}
+.auth-rules .rule { display: flex; gap: 8px; align-items: center; }
+.auth-rules .rule .mark { width: 16px; text-align: center; color: #7d6f5f; }
+.auth-rules .rule.ok { color: #9dc08b; }
+.auth-rules .rule.ok .mark { color: #9dc08b; }
+.auth-foot { color: var(--ink-soft); font-size: 14px; text-align: center; margin: 14px 0 0; }
+.auth-link {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--accent-deep);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.auth-link:hover, .auth-link.is-hover { color: var(--accent); }
+.auth-link:focus-visible, .auth-link.is-focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
 
 /* Small screens: single column rhythm, no sideways scroll */
 @media (max-width: 768px) {
