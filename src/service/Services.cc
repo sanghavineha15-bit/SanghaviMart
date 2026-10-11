@@ -2,6 +2,9 @@
 #include <algorithm>
 #include <chrono>
 #include <cctype>
+#include <cstdint>
+#include <cstdio>
+#include <sodium.h>
 #include <curl/curl.h>
 #include <spdlog/spdlog.h>
 #include "exception/AppException.h"
@@ -49,6 +52,65 @@ User AuthService::Login(const std::string& email, const std::string& password,
     throw UnauthorizedException("invalid email or password");
   }
   spdlog::info("[{}] login user_id={}", ctx.request_id, u->id);
+  return *u;
+}
+
+void AuthService::SetOtp(std::shared_ptr<IOtpRepository> otp) { otp_ = std::move(otp); }
+
+namespace {
+std::string Sha256Hex(const std::string& s) {
+  if (sodium_init() < 0) throw std::runtime_error("libsodium init failed");
+  unsigned char h[crypto_hash_sha256_BYTES];
+  crypto_hash_sha256(h, reinterpret_cast<const unsigned char*>(s.data()), s.size());
+  char out[crypto_hash_sha256_BYTES * 2 + 1];
+  sodium_bin2hex(out, sizeof(out), h, sizeof(h));
+  return std::string(out);
+}
+std::string RandomHex(std::size_t n) {
+  std::string out(n, '\0');
+  randombytes_buf(out.data(), n);
+  return Sha256Hex(out).substr(0, n);
+}
+}  // namespace
+
+std::string AuthService::RequestLoginCode(const std::string& email, bool expose_code,
+                                          const RequestContext& ctx) {
+  if (!otp_) throw ConflictException("email-code login is not enabled");
+  ValidationUtil::RequireEmail(email);
+  const std::string trimmed = ValidationUtil::Trim(email);
+  unsigned char buf[4] = {0};
+  randombytes_buf(buf, sizeof(buf));
+  const std::uint32_t v = (static_cast<std::uint32_t>(buf[0]) << 24) |
+                          (static_cast<std::uint32_t>(buf[1]) << 16) |
+                          (static_cast<std::uint32_t>(buf[2]) << 8) | buf[3];
+  char code[7];
+  std::snprintf(code, sizeof(code), "%06u", v % 1000000u);
+  otp_->Issue(trimmed, Sha256Hex(code),
+              NowSec() + 600);  // 10-minute window
+  spdlog::info("[{}] login code issued email={}", ctx.request_id, trimmed);
+  return expose_code ? std::string(code) : std::string();
+}
+
+User AuthService::VerifyLoginCode(const std::string& email, const std::string& code,
+                                  const RequestContext& ctx) {
+  if (!otp_) throw ConflictException("email-code login is not enabled");
+  ValidationUtil::RequireEmail(email);
+  const std::string trimmed = ValidationUtil::Trim(email);
+  if (!otp_->CheckAndCount(trimmed, Sha256Hex(code), NowSec())) {
+    spdlog::warn("[{}] bad login code email={}", ctx.request_id, trimmed);
+    throw UnauthorizedException("wrong or expired code");
+  }
+  otp_->MarkUsed(trimmed);
+  auto u = users_->FindByEmail(trimmed);
+  if (!u.has_value()) {  // OTP-first visit provisions a buyer
+    User nu;
+    nu.name = trimmed.substr(0, trimmed.find('@'));
+    nu.email = trimmed;
+    nu.password_hash = PasswordUtil::Hash("Otp#" + RandomHex(16));
+    nu.role = UserRole::kBuyer;
+    u = users_->Create(nu);
+  }
+  spdlog::info("[{}] code login user_id={}", ctx.request_id, u->id);
   return *u;
 }
 

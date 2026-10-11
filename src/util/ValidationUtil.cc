@@ -1,5 +1,7 @@
 #include "util/ValidationUtil.h"
 #include "exception/AppException.h"
+#include <algorithm>
+#include <cctype>
 #include <regex>
 namespace sanghavi::sanghavimart {
 void ValidationUtil::RequireNonEmpty(const std::string& field, const std::string& value) {
@@ -10,7 +12,19 @@ void ValidationUtil::RequireEmail(const std::string& email) {
   if (!std::regex_match(email, kRe)) throw ValidationException("invalid email format");
 }
 void ValidationUtil::RequirePassword(const std::string& password) {
-  if (password.size() < 8) throw ValidationException("password must be at least 8 characters");
+  auto has = [&](auto pred) {
+    return std::any_of(password.begin(), password.end(), pred);
+  };
+  if (password.size() < 8)
+    throw ValidationException("password rule: at least 8 characters");
+  if (!has([](unsigned char c) { return std::isupper(c); }))
+    throw ValidationException("password rule: one uppercase letter (A-Z)");
+  if (!has([](unsigned char c) { return std::islower(c); }))
+    throw ValidationException("password rule: one lowercase letter (a-z)");
+  if (!has([](unsigned char c) { return std::isdigit(c); }))
+    throw ValidationException("password rule: one number (0-9)");
+  if (!has([](unsigned char c) { return !std::isalnum(c); }))
+    throw ValidationException("password rule: one symbol (!@#...)");
 }
 void ValidationUtil::RequireRole(const std::string& role) {
   if (role != "BUYER" && role != "SELLER") throw ValidationException("role must be BUYER or SELLER");

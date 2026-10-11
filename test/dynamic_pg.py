@@ -31,7 +31,7 @@ def migrate(c):
     files = sorted(BASE.glob("V*.sql"), key=lambda p: p.name)
     assert [f.name for f in files] == ["V1__init_schema.sql", "V2__add_reviews_table.sql",
                                        "V3__add_index_orders_status.sql", "V4__seed_admin.sql",
-                                       "V5__chat_persistence.sql"], files
+                                       "V5__chat_persistence.sql", "V6__login_codes.sql"], files
     for f in files:
         ver = int(f.name[1])
         if c.execute("SELECT version FROM schema_migrations WHERE version=%s", (ver,)).fetchone():
@@ -40,7 +40,7 @@ def migrate(c):
             c.execute(f.read_text())
             c.execute("INSERT INTO schema_migrations(version) VALUES(%s)", (ver,))
     vers = [r[0] for r in c.execute("SELECT version FROM schema_migrations ORDER BY 1").fetchall()]
-    assert vers == [1, 2, 3, 4, 5], vers
+    assert vers == [1, 2, 3, 4, 5, 6], vers
 
 def main():
     c = conn()
@@ -237,6 +237,21 @@ def main():
                       ("u-test",)).fetchone()[0]
         assert n == 0, n
     check("V5 chat tables: 10/min window + cache roundtrip", chat)
+
+    # --- V6/O4: login_codes table shape (hash-only, expiry, attempts, single-use) ---
+    def otp():
+        cols = {r[0]: r[1] for r in c.execute(
+            "SELECT column_name,data_type FROM information_schema.columns WHERE table_name='login_codes'").fetchall()}
+        assert cols.get("code_hash") == "text", cols
+        assert cols.get("expires_at_sec") == "bigint", cols
+        assert "idx_login_codes_email" in {r[0] for r in c.execute(
+            "SELECT indexname FROM pg_indexes WHERE tablename='login_codes'").fetchall()}
+        c.execute("INSERT INTO login_codes(email,code_hash,expires_at_sec,attempts,used) VALUES(%s,%s,%s,%s,%s)",
+                  ("o@t.local", "h", 9999999999, 0, 0))
+        c.execute("UPDATE login_codes SET attempts=attempts+1,used=1 WHERE email=%s", ("o@t.local",))
+        r = c.execute("SELECT attempts,used FROM login_codes WHERE email=%s", ("o@t.local",)).fetchone()
+        assert tuple(r) == (1, 1), r
+    check("V6 login_codes: hash/expiry/attempts/single-use", otp)
 
     print(f"\n==== {len(passed)} passed, {len(failed)} failed ====")
     c.close()

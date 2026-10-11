@@ -50,6 +50,17 @@ class DbOrderRepository : public IOrderRepository {
  private:
   drogon::orm::DbClientPtr db_;
 };
+class DbOtpRepository : public IOtpRepository {
+ public:
+  explicit DbOtpRepository(drogon::orm::DbClientPtr db) : db_(std::move(db)) {}
+  void Issue(const std::string& email, const std::string& code_sha256_hex,
+             std::int64_t expires_at_sec) override;
+  bool CheckAndCount(const std::string& email, const std::string& code_sha256_hex,
+                     std::int64_t now_sec) override;
+  void MarkUsed(const std::string& email) override;
+ private:
+  drogon::orm::DbClientPtr db_;
+};
 class DbReviewRepository : public IReviewRepository {
  public:
   explicit DbReviewRepository(drogon::orm::DbClientPtr db) : db_(std::move(db)) {}

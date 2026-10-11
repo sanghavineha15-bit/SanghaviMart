@@ -2,7 +2,7 @@
 same Postgres, same Argon2id hashing, same HS256 JWTs. The frontend cannot
 tell the difference. (Deployable backend remains the Drogon C++ binary;
 this file is the localhost try-it-now path: run-local.bat)."""
-import base64, hashlib, hmac, json, os, re, threading, time, urllib.parse, webbrowser
+import base64, hashlib, hmac, json, os, re, secrets, threading, time, urllib.parse, webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import psycopg
@@ -33,6 +33,55 @@ def db():
     c = psycopg.connect(DSN)
     c.autocommit = True
     return c
+
+PW_RULES = [("len", "At least 8 characters", lambda s: len(s) >= 8),
+            ("upper", "One uppercase letter (A-Z)", lambda s: any(c.isupper() for c in s)),
+            ("lower", "One lowercase letter (a-z)", lambda s: any(c.islower() for c in s)),
+            ("digit", "One number (0-9)", lambda s: any(c.isdigit() for c in s)),
+            ("symbol", "One symbol (!@#...)",
+             lambda s: any(not c.isalnum() for c in s))]
+
+def check_password(pw):
+    """Returns None when all 5 rules pass, else the first failing rule text."""
+    for _, text, ok in PW_RULES:
+        if not ok(pw):
+            return text
+    return None
+
+OTP_TTL = 600
+OTP_SHOW_CODE = os.environ.get("DEMO_OTP_ECHO", "1") == "1"
+
+def otp_request(c, email):
+    code = f"{secrets.randbelow(900000) + 100000:06d}"
+    digest = hashlib.sha256(code.encode()).hexdigest()
+    c.execute("DELETE FROM login_codes WHERE email=%s", (email,))
+    c.execute("INSERT INTO login_codes(email,code_hash,expires_at_sec) VALUES(%s,%s,%s)",
+              (email, digest, int(time.time()) + OTP_TTL))
+    print(f"login code for {email}: {code} (valid 10 min)", flush=True)
+    out = {"sent": True}
+    if OTP_SHOW_CODE:
+        out["demo_code"] = code  # localhost demo delivery; production sends email instead
+    return out
+
+def otp_verify(c, email, code):
+    row = c.execute("SELECT id,code_hash,expires_at_sec,attempts,used FROM login_codes WHERE email=%s ORDER BY id DESC LIMIT 1",
+                    (email,)).fetchone()
+    if row is None:
+        return None, "no code requested for this email"
+    _id, digest, exp, att, used = row
+    if used or exp < time.time():
+        return None, "code expired — request a new one"
+    if att >= 5:
+        return None, "too many attempts — request a new one"
+    c.execute("UPDATE login_codes SET attempts=attempts+1 WHERE id=%s", (_id,))
+    if not hmac.compare_digest(digest, hashlib.sha256(str(code).encode()).hexdigest()):
+        return None, "wrong code"
+    c.execute("UPDATE login_codes SET used=1 WHERE id=%s", (_id,))
+    u = c.execute("SELECT id,name,email,role FROM users WHERE email=%s", (email,)).fetchone()
+    if u is None:  # OTP-first visit: provision a buyer; password login stays disabled
+        u = c.execute("INSERT INTO users(name,email,password_hash,role) VALUES(%s,%s,%s,'BUYER') RETURNING id,name,email,role",
+                      (email.split("@")[0], email, ph.hash(secrets.token_hex(32)))).fetchone()
+    return u, ""
 
 def ujson(row):
     return {"id": row[0], "name": row[1], "email": row[2], "role": row[3]}
@@ -136,8 +185,11 @@ class H(BaseHTTPRequestHandler):
             for f in ("name", "email", "password", "role"):
                 if not str(j.get(f, "")).strip():
                     return self.send(400, err=("VALIDATION_ERROR", f"{f} must not be empty"))
-            if "@" not in j["email"] or len(j["password"]) < 8:
-                return self.send(400, err=("VALIDATION_ERROR", "invalid email or weak password"))
+            if "@" not in j["email"]:
+                return self.send(400, err=("VALIDATION_ERROR", "invalid email format"))
+            pw_bad = check_password(str(j.get("password", "")))
+            if pw_bad:
+                return self.send(400, err=("VALIDATION_ERROR", pw_bad))
             if j["role"] not in ("BUYER", "SELLER"):
                 return self.send(400, err=("VALIDATION_ERROR", "role must be BUYER or SELLER"))
             try:
@@ -157,6 +209,18 @@ class H(BaseHTTPRequestHandler):
             except (AssertionError, VerifyMismatchError):
                 return self.send(401, err=("UNAUTHORIZED", "invalid email or password"))
             d = {"id": r[0], "name": r[1], "email": r[2], "role": r[4], "token": issue(r[0], r[4])}
+            return self.send(200, d)
+        if path == "/api/v1/auth/code/request" and m == "POST":
+            j = self.body()
+            if "@" not in str(j.get("email", "")):
+                return self.send(400, err=("VALIDATION_ERROR", "invalid email format"))
+            return self.send(200, otp_request(c, j["email"].strip()))
+        if path == "/api/v1/auth/code/verify" and m == "POST":
+            j = self.body()
+            u, err = otp_verify(c, str(j.get("email", "")).strip(), str(j.get("code", "")).strip())
+            if u is None:
+                return self.send(401, err=("UNAUTHORIZED", err))
+            d = {"id": u[0], "name": u[1], "email": u[2], "role": u[3], "token": issue(u[0], u[3])}
             return self.send(200, d)
         if path == "/api/v1/auth/logout" and m == "POST":
             return self.send(200, {"ok": True})

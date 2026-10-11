@@ -66,6 +66,19 @@ class IReviewRepository {
   virtual double AvgRating(std::int64_t product_id) = 0;
 };
 
+class IOtpRepository {
+ public:
+  virtual ~IOtpRepository() = default;
+  /// Stores sha256(code) with 10-min expiry (replaces older codes for email).
+  virtual void Issue(const std::string& email, const std::string& code_sha256_hex,
+                     std::int64_t expires_at_sec) = 0;
+  /// Atomically checks + counts an attempt. Returns true iff code is live.
+  /// Single-use enforcement happens in the service via MarkUsed.
+  virtual bool CheckAndCount(const std::string& email, const std::string& code_sha256_hex,
+                             std::int64_t now_sec) = 0;
+  virtual void MarkUsed(const std::string& email) = 0;
+};
+
 /// Factory - instantiates repository implementations, returning unique_ptr<Interface>.
 class RepositoryFactory {
  public:
@@ -74,6 +87,7 @@ class RepositoryFactory {
   static std::unique_ptr<ICartRepository> CreateCart(drogon::orm::DbClientPtr db);
   static std::unique_ptr<IOrderRepository> CreateOrders(drogon::orm::DbClientPtr db);
   static std::unique_ptr<IReviewRepository> CreateReviews(drogon::orm::DbClientPtr db);
+  static std::unique_ptr<IOtpRepository> CreateOtp(drogon::orm::DbClientPtr db);
 };
 
 }  // namespace sanghavi::sanghavimart

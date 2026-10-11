@@ -163,16 +163,29 @@ const VIEWS = {
     const p = document.createElement("input"); p.type = "password";
     p.autocomplete = mode === "signup" ? "new-password" : "current-password";
     mkField("Password", p, "Your password");
+    const PW_RULES = [
+      ["At least 8 characters", (s) => s.length >= 8],
+      ["One uppercase letter (A-Z)", (s) => /[A-Z]/.test(s)],
+      ["One lowercase letter (a-z)", (s) => /[a-z]/.test(s)],
+      ["One number (0-9)", (s) => /[0-9]/.test(s)],
+      ["One symbol (!@#...)", (s) => /[^A-Za-z0-9]/.test(s)]
+    ];
     if (mode === "signup") {
       const box = document.createElement("div"); box.className = "auth-rules";
-      ruleRow = document.createElement("div"); ruleRow.className = "rule";
-      ruleMark = document.createElement("span"); ruleMark.className = "mark"; ruleMark.textContent = "•";
-      ruleRow.append(ruleMark, document.createTextNode("At least 8 characters"));
-      box.append(ruleRow); card.append(box);
+      const rows = PW_RULES.map(([text]) => {
+        const row = document.createElement("div"); row.className = "rule";
+        const mark = document.createElement("span"); mark.className = "mark"; mark.textContent = "•";
+        row.append(mark, document.createTextNode(text));
+        box.append(row);
+        return row;
+      });
+      card.append(box);
       p.addEventListener("input", () => {
-        const ok = p.value.length >= 8;
-        ruleRow.classList.toggle("ok", ok);
-        ruleMark.textContent = ok ? "✓" : "•";
+        rows.forEach((row, i) => {
+          const ok = PW_RULES[i][1](p.value);
+          row.classList.toggle("ok", ok);
+          row.firstChild.textContent = ok ? "✓" : "•";
+        });
       });
       roleS = document.createElement("select");
       for (const [v, t] of [["BUYER", "Buy products"], ["SELLER", "Sell products"]]) {
@@ -181,15 +194,80 @@ const VIEWS = {
       mkField("I want to", roleS, "");
       roleS.required = true;
     }
+    let codeMode = false;
+    let sendRef = null;
+    const pwPane = document.createElement("div");
     const go = document.createElement("button");
     go.type = "submit"; go.className = "auth-btn";
     go.textContent = mode === "signup" ? "Create account" : "Sign in";
-    card.append(go);
+    if (mode === "signin") {
+      const tabs = document.createElement("div"); tabs.className = "auth-tabs"; tabs.setAttribute("role", "tablist");
+      const tPw = document.createElement("button"); tPw.type = "button"; tPw.textContent = "Password"; tPw.className = "on";
+      const tCode = document.createElement("button"); tCode.type = "button"; tCode.textContent = "Email code";
+      const codePane = document.createElement("div"); codePane.hidden = true;
+      const note = document.createElement("p"); note.className = "auth-note"; note.hidden = true;
+      const row = document.createElement("div"); row.className = "code-row";
+      const boxes = [];
+      for (let i = 0; i < 6; i++) {
+        const b = document.createElement("input");
+        b.className = "code-box"; b.maxLength = 1; b.inputMode = "numeric"; b.autocomplete = "one-time-code";
+        b.setAttribute("aria-label", "Digit " + (i + 1));
+        b.addEventListener("input", () => { b.value = b.value.replace(/\D/g, "").slice(0, 1); if (b.value && i < 5) boxes[i + 1].focus(); });
+        b.addEventListener("keydown", (ev) => { if (ev.key === "Backspace" && !b.value && i > 0) boxes[i - 1].focus(); if (ev.key === "Enter") doVerify(); });
+        row.append(b); boxes.push(b);
+      }
+      const sendBtn = document.createElement("button");
+      sendBtn.type = "button"; sendBtn.className = "auth-btn"; sendBtn.textContent = "Send code";
+      sendBtn.onclick = async () => {
+        try {
+          const d = await api("/api/v1/auth/code/request", { method: "POST", body: JSON.stringify({ email: e.value.trim() }) });
+          note.hidden = false;
+          note.textContent = d.demo_code ? "Demo delivery — your code is " + d.demo_code + ". (Production sends this by email.)" : "Code sent — check your email. Valid 10 minutes.";
+          row.hidden = false; verifyBtn.hidden = false;
+          boxes[0].focus();
+        } catch (er) { alert(er.message); }
+      };
+      const verifyBtn = document.createElement("button");
+      verifyBtn.type = "button"; verifyBtn.className = "auth-btn"; verifyBtn.textContent = "Verify & sign in"; verifyBtn.hidden = true;
+      const doVerify = async () => {
+        try {
+          const d = await api("/api/v1/auth/code/verify", { method: "POST", body: JSON.stringify({ email: e.value.trim(), code: boxes.map((b) => b.value).join("") }) });
+          if (d.token) localStorage.setItem(TOKEN_KEY, d.token);
+          await boot();
+        } catch (er) { alert(er.message); }
+      };
+      verifyBtn.onclick = doVerify;
+      sendRef = sendBtn;
+      codePane.append(note, row, sendBtn, verifyBtn);
+      row.hidden = true;
+      const pick = (isCode) => {
+        codeMode = isCode;
+        tPw.classList.toggle("on", !isCode);
+        tCode.classList.toggle("on", isCode);
+        pwPane.hidden = isCode;
+        go.hidden = isCode;
+        codePane.hidden = !isCode;
+      };
+      tPw.onclick = () => pick(false);
+      tCode.onclick = () => pick(true);
+      tabs.append(tPw, tCode);
+      card.insertBefore(tabs, card.firstChild);
+      card.append(codePane);
+    }
+    if (mode === "signin") {
+      pwPane.append(p.parentNode, go);
+      card.append(pwPane);
+    } else {
+      card.append(go);
+    }
     const goAuth = async () => {
       try {
         let d;
         if (mode === "signup") {
           d = await api("/api/v1/auth/register", { method: "POST", body: JSON.stringify({ name: nameI.value.trim(), email: e.value.trim(), password: p.value, role: roleS.value }) });
+        } else if (codeMode) {
+          if (sendRef) sendRef.click();
+          return;
         } else {
           d = await api("/api/v1/auth/login", { method: "POST", body: JSON.stringify({ email: e.value.trim(), password: p.value }) });
         }

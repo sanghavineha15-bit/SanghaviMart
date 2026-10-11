@@ -1,4 +1,5 @@
 #include "controller/Controllers.h"
+#include <cstdlib>
 #include <random>
 #include <sstream>
 #include "exception/AppException.h"
@@ -22,6 +23,7 @@ void ServiceLocator::Init(drogon::orm::DbClientPtr db, std::string chat_provider
   auto revs = std::shared_ptr<IReviewRepository>(RepositoryFactory::CreateReviews(db_));
   products_ = prods; cart_ = cart; orders_ = ords; reviews_ = revs;
   auth_ = std::make_shared<AuthService>(users_);
+  auth_->SetOtp(std::shared_ptr<IOtpRepository>(RepositoryFactory::CreateOtp(db_)));
   prod_ = std::make_shared<ProductService>(prods);
   cartsvc_ = std::make_shared<CartService>(cart, prods);
   auto pay = std::make_shared<MockPaymentChannel>();  // Strategy selected by config
@@ -117,6 +119,32 @@ void AuthController::Login(const drogon::HttpRequestPtr& req, std::function<void
     req->session()->insert("role", ToString(u.role));
     Json::Value body = UserJson(u);
     body["token"] = JwtUtil::Issue(  // stateless credential for scale-to-zero fleets
+        u.id, ToString(u.role), ServiceLocator::Instance().JwtSecret());
+    SendOk(std::move(cb), body);
+  } catch (const std::exception& e) { SendErr(std::move(cb), e); }
+}
+void AuthController::RequestCode(const drogon::HttpRequestPtr& req, std::function<void(const drogon::HttpResponsePtr&)>&& cb) {
+  try {
+    auto j = *req->getJsonObject();
+    const bool demo = std::getenv("DEMO_OTP_ECHO") == nullptr ||
+                      std::string(std::getenv("DEMO_OTP_ECHO")) == "1";
+    std::string code = ServiceLocator::Instance().Auth()->RequestLoginCode(
+        JsonUtil::Str(j, "email"), demo, Ctx(req));
+    Json::Value v; v["sent"] = true;
+    if (!code.empty()) v["demo_code"] = code;  // localhost demo delivery only
+    SendOk(std::move(cb), v);
+  } catch (const std::exception& e) { SendErr(std::move(cb), e); }
+}
+void AuthController::VerifyCode(const drogon::HttpRequestPtr& req, std::function<void(const drogon::HttpResponsePtr&)>&& cb) {
+  try {
+    auto j = *req->getJsonObject();
+    User u = ServiceLocator::Instance().Auth()->VerifyLoginCode(
+        JsonUtil::Str(j, "email"), JsonUtil::Str(j, "code"), Ctx(req));
+    req->session()->erase("user_id");
+    req->session()->insert("user_id", u.id);
+    req->session()->insert("role", ToString(u.role));
+    Json::Value body = UserJson(u);
+    body["token"] = JwtUtil::Issue(
         u.id, ToString(u.role), ServiceLocator::Instance().JwtSecret());
     SendOk(std::move(cb), body);
   } catch (const std::exception& e) { SendErr(std::move(cb), e); }

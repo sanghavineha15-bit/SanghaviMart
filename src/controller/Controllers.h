@@ -51,11 +51,15 @@ class AuthController : public drogon::HttpController<AuthController> {
   METHOD_LIST_BEGIN
   ADD_METHOD_TO(AuthController::Register, "/api/v1/auth/register", drogon::Post);
   ADD_METHOD_TO(AuthController::Login, "/api/v1/auth/login", drogon::Post);
+  ADD_METHOD_TO(AuthController::RequestCode, "/api/v1/auth/code/request", drogon::Post);
+  ADD_METHOD_TO(AuthController::VerifyCode, "/api/v1/auth/code/verify", drogon::Post);
   ADD_METHOD_TO(AuthController::Logout, "/api/v1/auth/logout", drogon::Post);
   ADD_METHOD_TO(AuthController::Me, "/api/v1/auth/me", drogon::Get);
   METHOD_LIST_END
   void Register(const drogon::HttpRequestPtr& req, std::function<void(const drogon::HttpResponsePtr&)>&& cb);
   void Login(const drogon::HttpRequestPtr& req, std::function<void(const drogon::HttpResponsePtr&)>&& cb);
+  void RequestCode(const drogon::HttpRequestPtr& req, std::function<void(const drogon::HttpResponsePtr&)>&& cb);
+  void VerifyCode(const drogon::HttpRequestPtr& req, std::function<void(const drogon::HttpResponsePtr&)>&& cb);
   void Logout(const drogon::HttpRequestPtr& req, std::function<void(const drogon::HttpResponsePtr&)>&& cb);
   void Me(const drogon::HttpRequestPtr& req, std::function<void(const drogon::HttpResponsePtr&)>&& cb);
 };

@@ -29,8 +29,18 @@ class AuthService {
   /// Verifies credentials; throws UnauthorizedException on failure.
   User Login(const std::string& email, const std::string& password,
             const RequestContext& ctx = {});
+  /// OTP store (login_codes table). Null = email-code login disabled.
+  void SetOtp(std::shared_ptr<IOtpRepository> otp);
+  /// Issues a 6-digit code (valid 10 min). Returns the code only when
+  /// expose_code is true (localhost demo delivery); production emails it.
+  std::string RequestLoginCode(const std::string& email, bool expose_code,
+                               const RequestContext& ctx = {});
+  /// Verifies a code (single-use, 5 attempts); provisions a BUYER on first use.
+  User VerifyLoginCode(const std::string& email, const std::string& code,
+                       const RequestContext& ctx = {});
  private:
   std::shared_ptr<IUserRepository> users_;
+  std::shared_ptr<IOtpRepository> otp_;
   std::string req_;
 };
 

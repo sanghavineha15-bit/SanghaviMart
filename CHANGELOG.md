@@ -1,4 +1,5 @@
 # Changelog
+- v1.4.0 — Email-code login (OTP: 6-digit, hashed, 10-min, 5 attempts, single-use, V6) with Password/Email-code tabs + 6-box entry; 5 password rules enforced live in UI and both backends.
 - v1.3.0 — Catalog v2: 332 products, 11 categories, one unique human-verified photo per product (test/seed_catalog_v2.py); image cards + category browse in storefront.
 - v1.2.0 — Pure-Vercel stateless backend: HS256 JWT auth (libsodium), Postgres-backed chat limits/cache (V5), $PORT listener, DATABASE_URL/JWT_SECRET env, Dockerfile.vercel + vercel.json, token-wired storefront.
 - v1.1.0 � AI chatbot (ChatController/ChatService, mock+Gemini providers, rate-limit, cache, widget).

@@ -241,7 +241,33 @@ std::unique_ptr<ICartRepository> RepositoryFactory::CreateCart(drogon::orm::DbCl
 std::unique_ptr<IOrderRepository> RepositoryFactory::CreateOrders(drogon::orm::DbClientPtr db) {
   return std::make_unique<DbOrderRepository>(std::move(db));
 }
+void DbOtpRepository::Issue(const std::string& email, const std::string& code_sha256_hex,
+                          std::int64_t expires_at_sec) {
+  Exec(db_, "DELETE FROM login_codes WHERE email=$1", email);
+  Exec(db_, "INSERT INTO login_codes(email,code_hash,expires_at_sec) VALUES($1,$2,$3)",
+       email, code_sha256_hex, expires_at_sec);
+}
+bool DbOtpRepository::CheckAndCount(const std::string& email,
+                                    const std::string& code_sha256_hex,
+                                    std::int64_t now_sec) {
+  auto r = Exec(db_, "SELECT id,code_hash,expires_at_sec,attempts,used FROM login_codes"
+                      " WHERE email=$1 ORDER BY id DESC LIMIT 1", email);
+  if (r.empty()) return false;
+  auto row = r[0];
+  Exec(db_, "UPDATE login_codes SET attempts=attempts+1 WHERE id=$1",
+       row["id"].as<std::int64_t>());
+  if (row["used"].as<int>() != 0) return false;
+  if (row["expires_at_sec"].as<std::int64_t>() < now_sec) return false;
+  if (row["attempts"].as<int>() >= 5) return false;
+  return row["code_hash"].as<std::string>() == code_sha256_hex;
+}
+void DbOtpRepository::MarkUsed(const std::string& email) {
+  Exec(db_, "UPDATE login_codes SET used=1 WHERE email=$1", email);
+}
 std::unique_ptr<IReviewRepository> RepositoryFactory::CreateReviews(drogon::orm::DbClientPtr db) {
   return std::make_unique<DbReviewRepository>(std::move(db));
+}
+std::unique_ptr<IOtpRepository> RepositoryFactory::CreateOtp(drogon::orm::DbClientPtr db) {
+  return std::make_unique<DbOtpRepository>(std::move(db));
 }
 }  // namespace sanghavi::sanghavimart
