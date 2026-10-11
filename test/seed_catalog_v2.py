@@ -27,14 +27,15 @@ OLD_SEED_NAMES = {"Steel Water Bottle 1L", "Cotton Kurta - Indigo", "Cotton Kurt
                   "USB-C Fast Charger 65W", "USB Mobile Charger", "Filter Coffee Powder 500g"}
 
 def ensure_user(c, name, email, password, role):
-    r = c.execute("SELECT id,password_hash FROM users WHERE email=%s", (email,)).fetchone()
+    # Demo logins must always work: tests wipe/recreate these rows with fake
+    # hashes, so reset the password unconditionally (demo data only).
+    r = c.execute("SELECT id FROM users WHERE email=%s", (email,)).fetchone()
     if r is None:
         c.execute("INSERT INTO users(name,email,password_hash,role) VALUES(%s,%s,%s,%s)",
                   (name, email, ph.hash(password), role))
-        print(f"created {role.lower()} login: {email} / {password}")
-    elif "REPLACE_ME" in r[1]:
+    else:
         c.execute("UPDATE users SET password_hash=%s WHERE email=%s", (ph.hash(password), email))
-        print(f"password set for demo login: {email} / {password}")
+    print(f"demo login ready: {email} / {password}")
 
 def main():
     c = psycopg.connect(DSN)

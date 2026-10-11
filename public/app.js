@@ -111,9 +111,20 @@ const VIEWS = {
   },
   async admin() {
     try {
-      const [us, os] = await Promise.all([api("/api/v1/admin/users"), api("/api/v1/admin/orders")]);
+      const [us, os, ps] = await Promise.all([api("/api/v1/admin/users"), api("/api/v1/admin/orders"), api("/api/v1/products?limit=100")]);
+      ps.sort((a, b) => b.id - a.id); // newest listings first: moderation starts at fresh abuse
       app.innerHTML = ""; app.append(el("h2", "Admin: " + us.length + " users, " + os.length + " orders"));
+      app.append(el("h3", "Users"));
       for (const u of us) app.append(el("div", u.email + " (" + u.role + ")"));
+      app.append(el("h3", "Orders"));
+      for (const o of os) app.append(el("div", "#" + o.id + " " + o.status + " (" + o.buyer_id + ")"));
+      app.append(el("h3", "Listings (" + ps.length + ") - Remove takes down any product"));
+      for (const p of ps) {
+        const d = document.createElement("div"); d.append(el("span", "#" + p.id + " " + p.name + " "));
+        const del = document.createElement("button"); del.textContent = "Remove";
+        del.onclick = async () => { try { await api("/api/v1/admin/products/" + p.id, { method: "DELETE" }); VIEWS.admin(); } catch (e) { alert(e.message); } };
+        d.append(del); app.append(d);
+      }
     } catch (e) { app.innerHTML = ""; app.append(el("p", "Admin only: " + e.message)); }
   },
   async auth() {

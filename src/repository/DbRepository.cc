@@ -65,11 +65,11 @@ std::vector<Product> DbProductRepository::Search(const std::string& kw, const st
   drogon::orm::Result r;
   if (cat.empty())
     r = Exec(db_, "SELECT id,seller_id,name,description,price_cents,stock_qty,category,image_url,created_at FROM products"
-                  " WHERE ($1 = $2 OR name LIKE $1 OR description LIKE $1) ORDER BY id LIMIT $3 OFFSET $4",
+                  " WHERE ($1 = $2 OR name LIKE $1 OR description LIKE $1) ORDER BY id DESC LIMIT $3 OFFSET $4",
              like, std::string("%%"), lim, off);
   else
     r = Exec(db_, "SELECT id,seller_id,name,description,price_cents,stock_qty,category,image_url,created_at FROM products"
-                  " WHERE category=$1 AND ($2 = $3 OR name LIKE $2 OR description LIKE $2) ORDER BY id LIMIT $4 OFFSET $5",
+                  " WHERE category=$1 AND ($2 = $3 OR name LIKE $2 OR description LIKE $2) ORDER BY id DESC LIMIT $4 OFFSET $5",
              cat, like, std::string("%%"), lim, off);
   std::vector<Product> out;
   for (auto row : r) {
@@ -98,6 +98,9 @@ void DbProductRepository::Update(const Product& p) {
        p.name, p.description, p.price.Cents(), p.stock_qty, p.category, p.image_url, p.id);
 }
 void DbProductRepository::Remove(std::int64_t id) {
+  auto refs = Exec(db_, "SELECT COUNT(*) AS c FROM order_items WHERE product_id=$1", id);
+  if (refs[0]["c"].as<std::int64_t>() > 0)
+    throw ConflictException("cannot remove: listing has orders");
   Exec(db_, "DELETE FROM products WHERE id=$1", id);
 }
 // ---- cart ----

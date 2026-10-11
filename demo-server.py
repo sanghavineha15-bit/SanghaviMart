@@ -175,10 +175,10 @@ class H(BaseHTTPRequestHandler):
                 lim = 50
             like = f"%{kw}%"
             if cat:
-                rows = c.execute("SELECT id,seller_id,name,description,price_cents,stock_qty,category,image_url FROM products WHERE category=%s AND (%s=%s OR name LIKE %s OR description LIKE %s) ORDER BY id LIMIT %s",
+                rows = c.execute("SELECT id,seller_id,name,description,price_cents,stock_qty,category,image_url FROM products WHERE category=%s AND (%s=%s OR name LIKE %s OR description LIKE %s) ORDER BY id DESC LIMIT %s",
                                  (cat, like, "%%", like, like, lim)).fetchall()
             else:
-                rows = c.execute("SELECT id,seller_id,name,description,price_cents,stock_qty,category,image_url FROM products WHERE (%s=%s OR name LIKE %s OR description LIKE %s) ORDER BY id LIMIT %s",
+                rows = c.execute("SELECT id,seller_id,name,description,price_cents,stock_qty,category,image_url FROM products WHERE (%s=%s OR name LIKE %s OR description LIKE %s) ORDER BY id DESC LIMIT %s",
                                  (like, "%%", like, like, lim)).fetchall()
             return self.send(200, [pjson(r) for r in rows])
         if path == "/api/v1/products" and m == "POST":
@@ -205,6 +205,8 @@ class H(BaseHTTPRequestHandler):
                 if cur[0] != uid and role != "ADMIN":
                     return self.send(403, err=("FORBIDDEN", "not your listing"))
                 if m == "DELETE":
+                    if c.execute("SELECT COUNT(*) FROM order_items WHERE product_id=%s", (pid,)).fetchone()[0]:
+                        return self.send(409, err=("CONFLICT", "cannot remove: listing has orders"))
                     c.execute("DELETE FROM products WHERE id=%s", (pid,))
                     return self.send(200, {"ok": True})
                 j = self.body()
@@ -328,7 +330,10 @@ class H(BaseHTTPRequestHandler):
         if mt and m == "DELETE":
             if err := need("ADMIN"):
                 return err
-            c.execute("DELETE FROM products WHERE id=%s", (int(mt.group(1)),))
+            pid = int(mt.group(1))
+            if c.execute("SELECT COUNT(*) FROM order_items WHERE product_id=%s", (pid,)).fetchone()[0]:
+                return self.send(409, err=("CONFLICT", "cannot remove: listing has orders"))
+            c.execute("DELETE FROM products WHERE id=%s", (pid,))
             return self.send(200, {"ok": True})
         if path == "/api/v1/chat" and m == "POST":
             msg = str(self.body().get("message", ""))
