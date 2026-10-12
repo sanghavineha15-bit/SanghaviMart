@@ -460,7 +460,8 @@ if __name__ == "__main__":
     ensure_admin()
     srv = ThreadingHTTPServer(("0.0.0.0", PORT), H)
     print(f"SanghaviMart demo live at http://localhost:{PORT}  (same API + same Postgres as the C++ backend)")
-    threading.Timer(1.0, lambda: webbrowser.open(f"http://localhost:{PORT}")).start()
+    if not os.environ.get("VERCEL"):  # local runs open the shop; servers have no browser
+        threading.Timer(1.0, lambda: webbrowser.open(f"http://localhost:{PORT}")).start()
     try:
         srv.serve_forever()
     except KeyboardInterrupt:
