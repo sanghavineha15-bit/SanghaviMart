@@ -4,5 +4,7 @@ vcpkg_installed/
 config.local.json
 *.db
 *.db-journal
+pgsql/
+__pycache__/
 out/
 .cache/

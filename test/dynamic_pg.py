@@ -7,7 +7,7 @@ import pathlib, sys
 import psycopg
 
 BASE = pathlib.Path("F:/ayyapacapc/sanghavimart/db/postgres")
-DSN = "host=127.0.0.1 port=5434 dbname=sanghavimart user=sanghavi password=sanghavi_pw"
+DSN = "host=127.0.0.1 port=5433 dbname=sanghavimart user=sanghavi password=sanghavi_pw"
 passed, failed = [], []
 
 def check(name, fn):
