@@ -1,17 +1,16 @@
 """SanghaviMart LOCAL DEMO server — same /api/v1 contract as the C++ backend,
-same Postgres, same Argon2id hashing, same HS256 JWTs. The frontend cannot
-tell the difference. (Deployable backend remains the Drogon C++ binary;
-this file is the localhost try-it-now path: run-local.bat)."""
+same Argon2id hashing, same HS256 JWTs. Database: embedded SQLite by default
+(zero installs), PostgreSQL when DATABASE_URL/POSTGRES_URL is set.
+The frontend cannot tell the difference. (Deployable backend remains the
+Drogon C++ binary; this file is the localhost try-it-now path: run-local.bat)."""
 import base64, hashlib, hmac, json, os, re, secrets, threading, time, urllib.parse, webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-import psycopg
+from dblib import DB, DUP_ERRORS, ensure_schema
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 
 PORT = int(os.environ.get("PORT", "8080"))
-DSN = os.environ.get("DATABASE_URL") or os.environ.get("POSTGRES_URL") or \
-    "host=127.0.0.1 port=5434 dbname=sanghavimart user=sanghavi password=sanghavi_pw"
 JWT_SECRET = os.environ.get("JWT_SECRET") or "dev-only-16plus-chars-change-me"
 PUBLIC = os.path.join(os.path.dirname(os.path.abspath(__file__)), "public")
 ph = PasswordHasher()  # Argon2id, like crypto_pwhash in the C++ backend
@@ -30,8 +29,8 @@ def issue(uid, role):
     return f"{h}.{p}.{s}"
 
 def db():
-    c = psycopg.connect(DSN)
-    c.autocommit = True
+    c = DB()
+    ensure_schema(c)
     return c
 
 PW_RULES = [("len", "At least 8 characters", lambda s: len(s) >= 8),
@@ -195,7 +194,7 @@ class H(BaseHTTPRequestHandler):
             try:
                 r = c.execute("INSERT INTO users(name,email,password_hash,role) VALUES(%s,%s,%s,%s) RETURNING id,name,email,role",
                               (j["name"].strip(), j["email"].strip(), ph.hash(j["password"]), j["role"])).fetchone()
-            except psycopg.errors.UniqueViolation:
+            except DUP_ERRORS:
                 return self.send(409, err=("CONFLICT", "email already registered"))
             d = ujson(r)
             d["token"] = issue(r[0], r[3])

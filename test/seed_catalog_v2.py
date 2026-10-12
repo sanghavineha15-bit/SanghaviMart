@@ -4,11 +4,10 @@ human-verified photo. Idempotent (upsert on seller+name). Run:
   python test/seed_catalog_v2.py --if-empty # no-op unless seller has <300 rows
 Also self-heals demo logins (seller/admin with known passwords)."""
 import json, os, sys
-import psycopg
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from dblib import DB, ensure_schema
 from argon2 import PasswordHasher
 
-DSN = os.environ.get("DATABASE_URL") or os.environ.get("POSTGRES_URL") or \
-    "host=127.0.0.1 port=5434 dbname=sanghavimart user=sanghavi password=sanghavi_pw"
 HERE = os.path.dirname(os.path.abspath(__file__))
 ph = PasswordHasher()
 
@@ -38,8 +37,8 @@ def ensure_user(c, name, email, password, role):
     print(f"demo login ready: {email} / {password}")
 
 def main():
-    c = psycopg.connect(DSN)
-    c.autocommit = True
+    c = DB()
+    ensure_schema(c)
     ensure_user(c, "Demo Seller", "seller@sanghavimart.local", "Seller123!", "SELLER")
     ensure_user(c, "SanghaviMart Admin", "admin@sanghavimart.local", "Admin123!", "ADMIN")
     sid = c.execute("SELECT id FROM users WHERE email='seller@sanghavimart.local'").fetchone()[0]
