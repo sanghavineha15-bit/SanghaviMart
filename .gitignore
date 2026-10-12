@@ -8,3 +8,4 @@ pgsql/
 __pycache__/
 out/
 .cache/
+.vercel

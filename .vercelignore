@@ -1,0 +1,12 @@
+__pycache__
+*.pyc
+output/
+*.db
+*.db-journal
+*.log
+.git
+.github
+test/dynamic_pg.py
+test/check_sqlite.py
+test/jwt_contract.py
+test/setup_pg.py
